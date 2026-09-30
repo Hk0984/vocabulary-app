@@ -1,627 +1,2902 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>単語学習</title>
-
-    <link rel="stylesheet" href="style.css">
-
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore-compat.js"></script>
-</head>
-
-<body>
-
-<header>
-    <h1>単語学習</h1>
-
-    <div class="header-right">
-
-        <nav id="mainNav" style="display:none;">
-            <button onclick="showPage('sheetPage')">学習</button>
-            <button onclick="showPage('progressPage')">学習状況</button>
-            <button onclick="showPage('accountPage')">アカウント</button>
-        </nav>
-
-        <button
-            id="headerAuthButton"
-            class="header-auth-button"
-            onclick="handleHeaderAuthButton()"
-        >
-            ログインする
-        </button>
-
-    </div>
-</header>
+/* =========================================================
+   単語学習アプリ
+   Firebase Authentication + Firestore
+   Google Sheets
+========================================================= */
 
 
-<main>
+/* =========================================================
+   Firebase設定
+========================================================= */
 
-<!-- =========================
-     トップ
-========================= -->
-
-<section id="homePage">
-
-    <div class="auth-box">
-
-        <h2>単語学習へようこそ</h2>
-
-        <p>
-    ログインすると、学習状況を保存して
-    次回も続きから学習できます。
-</p>
-
-<div class="trial-notice">
-    <strong>ログインせずに試す場合</strong>
-    <span>
-        学習記録は保存されません。
-        学習記録を残したい場合は、ログインしてください。
-    </span>
-</div>
-
-        <button
-            id="homeLoginButton"
-            onclick="openLoginPage()"
-        >
-            ログインする
-        </button>
-
-        <button
-            class="secondary-button"
-            onclick="startAsAnonymous()"
-        >
-            ログインせず試してみる
-        </button>
-
-        <div id="homeMessage" class="auth-message"></div>
-
-    </div>
-
-</section>
+const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyAXflojJlDfwkAXcTcHMRSXCzeNiWICs4Y",
+    authDomain: "vocab-app-f6f57.firebaseapp.com",
+    projectId: "vocab-app-f6f57",
+    storageBucket: "vocab-app-f6f57.firebasestorage.app",
+    messagingSenderId: "167837450502",
+    appId: "1:167837450502:web:afbae5b8e8dd8381c91e87"
+};
 
 
-<!-- =========================
-     ログイン
-========================= -->
+/* =========================================================
+   Google Sheets設定
+========================================================= */
 
-<section id="authPage" style="display:none;">
+// 現在使用しているGoogle Sheets APIキーを入れてください
+const GOOGLE_SHEETS_API_KEY = "AIzaSyAVnvuKTzKDq8hUcoEpIhEMveldEIdhWGQ";
 
-    <div class="auth-box">
-
-        <h2 id="authTitle">ログイン</h2>
-
-        <div class="auth-form">
-
-            <label for="emailInput">
-                メールアドレス
-            </label>
-
-            <input
-                id="emailInput"
-                type="email"
-                autocomplete="email"
-                placeholder="example@example.com"
-            >
-
-            <label for="passwordInput">
-                パスワード
-            </label>
-
-            <input
-                id="passwordInput"
-                type="password"
-                autocomplete="current-password"
-                placeholder="6文字以上"
-            >
-
-            <button
-                id="authButton"
-                onclick="handleAuth()"
-            >
-                ログイン
-            </button>
-
-            <button
-                id="toggleAuthButton"
-                class="secondary-button"
-                onclick="toggleAuthMode()"
-            >
-                新規登録はこちら
-            </button>
-
-            <button
-                class="back-button"
-                onclick="showPage('homePage')"
-            >
-                戻る
-            </button>
-
-            <div
-                id="authMessage"
-                class="auth-message"
-            ></div>
-
-        </div>
-
-    </div>
-
-</section>
+// 現在使用しているスプレッドシートIDを入れてください
+const SHEET_ID = "1AB15tNzU9n5yjjcHRhsYDfFZ2ftJ0CpXI2df2UetU6Q";
 
 
-<!-- =========================
-     ジャンル選択
-========================= -->
+/* =========================================================
+   Firebase
+========================================================= */
 
-<section id="sheetPage" style="display:none;">
-
-    <div class="sheet-box">
-
-        <h2>出題するジャンルを選択</h2>
-
-        <div id="sheetList">
-            <p class="loading">
-                ジャンルを読み込んでいます...
-            </p>
-        </div>
-
-        <button
-            id="startButton"
-            onclick="startStudy()"
-            disabled
-        >
-            次へ
-        </button>
-
-    </div>
-
-</section>
+let auth = null;
+let db = null;
+let currentUser = null;
+let firebaseReady = false;
 
 
-<!-- =========================
-     学習設定
-========================= -->
+/* =========================================================
+   アプリ状態
+========================================================= */
 
-<section id="settingsPage" style="display:none;">
+let SHEETS = [];
+let selectedSheet = null;
+let studyWords = [];
+let currentIndex = 0;
+let currentWord = null;
+let progress = {};
 
-    <div class="settings-box">
+let studySettings = {
+    mode: "normal",
+    format: "frontToBack",
+    count: 10
+};
 
-        <h2>学習設定</h2>
+let sessionResults = [];
+let sessionCorrect = 0;
+let sessionAnswered = 0;
 
-        <div class="setting-section">
+let authMode = "login";
+let authPageOpenedManually = false;
+let creatingAnonymousUser = false;
 
-            <h3>学習モード</h3>
 
-            <div class="setting-options">
+/* =========================================================
+   初期化
+========================================================= */
 
-                <button
-                    class="setting-option selected"
-                    data-setting="mode"
-                    data-value="normal"
-                    onclick="selectSetting(this)"
-                >
-                    <strong>通常学習</strong>
-                    <span>すべての単語から出題</span>
-                </button>
+document.addEventListener("DOMContentLoaded", async () => {
 
-                <button
-                    class="setting-option"
-                    data-setting="mode"
-                    data-value="weak"
-                    onclick="selectSetting(this)"
-                >
-                    <strong>苦手単語</strong>
-                    <span>誤答率41%以上の単語</span>
-                </button>
+    try {
 
-                <button
-                    class="setting-option"
-                    data-setting="mode"
-                    data-value="unlearned"
-                    onclick="selectSetting(this)"
-                >
-                    <strong>未学習単語</strong>
-                    <span>まだ回答したことのない単語</span>
-                </button>
+        firebase.initializeApp(FIREBASE_CONFIG);
 
-                <button
-                    class="setting-option"
-                    data-setting="mode"
-                    data-value="incorrect"
-                    onclick="selectSetting(this)"
-                >
-                    <strong>間違えた単語</strong>
-                    <span>1回でも間違えたことのある単語</span>
-                </button>
+        auth = firebase.auth();
+        db = firebase.firestore();
 
+        /*
+         * Firebaseにログイン状態を保持させる。
+         * ブラウザを閉じても基本的にログイン状態が維持されます。
+         */
+
+        await auth.setPersistence(
+            firebase.auth.Auth.Persistence.LOCAL
+        );
+
+        setupAuthEvents();
+        setupNavigationEvents();
+
+        auth.onAuthStateChanged(async (user) => {
+
+            currentUser = user;
+
+            if (user) {
+
+                firebaseReady = true;
+
+                updateHeader();
+                updateAccountPage();
+
+                /*
+                 * ログイン済み / 匿名利用中
+                 */
+
+                if (authPageOpenedManually) {
+                    authPageOpenedManually = false;
+                }
+
+                document.getElementById("authPage").style.display = "none";
+                document.getElementById("mainNav").style.display = "flex";
+
+                await initializeAppAfterLogin();
+
+                /*
+                 * 匿名ユーザーの場合も利用可能。
+                 */
+
+                showPage("sheetPage");
+
+            } else {
+
+                firebaseReady = false;
+
+                updateHeader();
+
+                document.getElementById("mainNav").style.display = "none";
+
+                /*
+                 * ログアウト後は自動で匿名アカウントを作らない。
+                 *
+                 * 「ログインを基本」にするため、
+                 * ログアウト後はトップ画面に戻します。
+                 */
+
+                showPage("homePage");
+            }
+
+        });
+
+    } catch (error) {
+
+        console.error("Firebase初期化エラー:", error);
+
+        const message =
+            document.getElementById("homeMessage");
+
+        if (message) {
+
+            message.textContent =
+                "初期化に失敗しました。Firebase設定を確認してください。";
+        }
+    }
+});
+
+
+/* =========================================================
+   認証イベント
+========================================================= */
+
+function setupAuthEvents() {
+
+    const emailInput =
+        document.getElementById("emailInput");
+
+    const passwordInput =
+        document.getElementById("passwordInput");
+
+    if (emailInput) {
+
+        emailInput.addEventListener("keydown", (event) => {
+
+            if (event.key === "Enter") {
+                handleAuth();
+            }
+
+        });
+    }
+
+    if (passwordInput) {
+
+        passwordInput.addEventListener("keydown", (event) => {
+
+            if (event.key === "Enter") {
+                handleAuth();
+            }
+
+        });
+    }
+}
+
+
+/* =========================================================
+   ナビゲーション
+========================================================= */
+
+function setupNavigationEvents() {
+
+    // 現在はHTMLのonclickを使用しています。
+
+}
+
+
+/* =========================================================
+   ページ切り替え
+========================================================= */
+
+function showPage(pageId) {
+
+    const pages = [
+        "homePage",
+        "authPage",
+        "sheetPage",
+        "settingsPage",
+        "studyPage",
+        "progressPage",
+        "accountPage"
+    ];
+
+    pages.forEach((id) => {
+
+        const page =
+            document.getElementById(id);
+
+        if (page) {
+
+            page.style.display =
+                id === pageId ? "block" : "none";
+        }
+
+    });
+
+
+    /*
+     * アプリ内部ページへ移動するときは
+     * ログイン状態を確認する。
+     */
+
+    const appPages = [
+        "sheetPage",
+        "settingsPage",
+        "studyPage",
+        "progressPage",
+        "accountPage"
+    ];
+
+    if (appPages.includes(pageId)) {
+
+        if (!currentUser) {
+
+            showPage("homePage");
+            return;
+        }
+    }
+
+
+    if (pageId === "progressPage") {
+
+        loadProgressSheetList();
+    }
+
+
+    if (pageId === "accountPage") {
+
+        updateAccountPage();
+    }
+}
+
+
+/* =========================================================
+   ヘッダー
+========================================================= */
+
+function updateHeader() {
+
+    const button =
+        document.getElementById("headerAuthButton");
+
+    if (!button) {
+        return;
+    }
+
+
+    if (!currentUser) {
+
+        button.textContent = "ログインする";
+
+        button.onclick =
+            openLoginPage;
+
+        return;
+    }
+
+
+    if (currentUser.isAnonymous) {
+
+        button.textContent = "アカウント登録";
+
+        button.onclick =
+            openRegisterPage;
+
+        return;
+    }
+
+
+    button.textContent = "アカウント";
+
+    button.onclick = () => {
+
+        showPage("accountPage");
+
+    };
+}
+
+
+/* =========================================================
+   ヘッダーのボタン
+========================================================= */
+
+function handleHeaderAuthButton() {
+
+    if (!currentUser) {
+
+        openLoginPage();
+        return;
+    }
+
+
+    if (currentUser.isAnonymous) {
+
+        openRegisterPage();
+        return;
+    }
+
+
+    showPage("accountPage");
+}
+
+
+/* =========================================================
+   ログイン画面
+========================================================= */
+
+function openLoginPage() {
+
+    authMode = "login";
+
+    authPageOpenedManually = true;
+
+    updateAuthUI();
+
+    showPage("authPage");
+}
+
+
+/* =========================================================
+   新規登録画面
+========================================================= */
+
+function openRegisterPage() {
+
+    authMode = "register";
+
+    authPageOpenedManually = true;
+
+    updateAuthUI();
+
+    showPage("authPage");
+}
+
+
+/* =========================================================
+   認証モード切り替え
+========================================================= */
+
+function toggleAuthMode() {
+
+    if (authMode === "login") {
+
+        authMode = "register";
+
+    } else {
+
+        authMode = "login";
+    }
+
+    updateAuthUI();
+
+    clearAuthMessage();
+}
+
+
+/* =========================================================
+   認証画面UI
+========================================================= */
+
+function updateAuthUI() {
+
+    const title =
+        document.getElementById("authTitle");
+
+    const button =
+        document.getElementById("authButton");
+
+    const toggle =
+        document.getElementById("toggleAuthButton");
+
+    const password =
+        document.getElementById("passwordInput");
+
+
+    if (authMode === "login") {
+
+        if (title) {
+
+            title.textContent = "ログイン";
+        }
+
+        if (button) {
+
+            button.textContent = "ログイン";
+        }
+
+        if (toggle) {
+
+            toggle.textContent =
+                "新規登録はこちら";
+        }
+
+        if (password) {
+
+            password.autocomplete =
+                "current-password";
+        }
+
+    } else {
+
+        if (title) {
+
+            title.textContent = "新規登録";
+        }
+
+        if (button) {
+
+            button.textContent =
+                "アカウントを登録";
+        }
+
+        if (toggle) {
+
+            toggle.textContent =
+                "ログインはこちら";
+        }
+
+        if (password) {
+
+            password.autocomplete =
+                "new-password";
+        }
+    }
+}
+
+
+/* =========================================================
+   ログイン / 新規登録
+========================================================= */
+
+async function handleAuth() {
+
+    if (!auth) {
+        return;
+    }
+
+
+    const email =
+        document.getElementById("emailInput")
+            ?.value
+            .trim();
+
+    const password =
+        document.getElementById("passwordInput")
+            ?.value;
+
+
+    clearAuthMessage();
+
+
+    if (!email || !password) {
+
+        showAuthMessage(
+            "メールアドレスとパスワードを入力してください。"
+        );
+
+        return;
+    }
+
+
+    if (password.length < 6) {
+
+        showAuthMessage(
+            "パスワードは6文字以上にしてください。"
+        );
+
+        return;
+    }
+
+
+    setAuthButtonDisabled(true);
+
+
+    try {
+
+        /* =============================================
+           ログイン
+        ============================================= */
+
+        if (authMode === "login") {
+
+            /*
+             * 匿名ユーザーから既存アカウントへ
+             * 切り替える場合も通常ログインです。
+             *
+             * 匿名アカウントの学習履歴を残したい場合は、
+             * 「新規登録」を使用してください。
+             */
+
+            await auth.signInWithEmailAndPassword(
+                email,
+                password
+            );
+
+            showAuthMessage(
+                "ログインしました。"
+            );
+
+            return;
+        }
+
+
+        /* =============================================
+           新規登録
+        ============================================= */
+
+        /*
+         * すでに匿名アカウントがある場合、
+         * 新しいアカウントを作るのではなく
+         * 現在の匿名UIDにメール/パスワードを紐付けます。
+         *
+         * これによりFirestoreの学習履歴を維持できます。
+         */
+
+        if (
+            auth.currentUser &&
+            auth.currentUser.isAnonymous
+        ) {
+
+            const credential =
+                firebase.auth.EmailAuthProvider
+                    .credential(
+                        email,
+                        password
+                    );
+
+
+            await auth.currentUser
+                .linkWithCredential(credential);
+
+
+            currentUser =
+                auth.currentUser;
+
+
+            updateHeader();
+            updateAccountPage();
+
+
+            showAuthMessage(
+                "アカウントを登録しました。学習履歴も引き継がれています。"
+            );
+
+            return;
+        }
+
+
+        /*
+         * 匿名ではない状態なら通常の新規登録。
+         */
+
+        await auth.createUserWithEmailAndPassword(
+            email,
+            password
+        );
+
+
+        showAuthMessage(
+            "アカウントを作成しました。"
+        );
+
+    } catch (error) {
+
+        console.error("認証エラー:", error);
+
+        showAuthMessage(
+            getAuthErrorMessage(error)
+        );
+
+    } finally {
+
+        setAuthButtonDisabled(false);
+    }
+}
+
+
+/* =========================================================
+   認証エラーメッセージ
+========================================================= */
+
+function getAuthErrorMessage(error) {
+
+    switch (error.code) {
+
+        case "auth/invalid-email":
+
+            return "メールアドレスの形式が正しくありません。";
+
+        case "auth/user-not-found":
+
+            return "このメールアドレスのアカウントが見つかりません。";
+
+        case "auth/wrong-password":
+
+            return "パスワードが正しくありません。";
+
+        case "auth/invalid-credential":
+
+            return "メールアドレスまたはパスワードが正しくありません。";
+
+        case "auth/email-already-in-use":
+
+            return "このメールアドレスはすでに使用されています。";
+
+        case "auth/credential-already-in-use":
+
+            return "このメールアドレスはすでに別のアカウントで使用されています。";
+
+        case "auth/provider-already-linked":
+
+            return "このログイン方法はすでに登録されています。";
+
+        case "auth/weak-password":
+
+            return "パスワードが弱すぎます。6文字以上で設定してください。";
+
+        case "auth/operation-not-allowed":
+
+            return "Firebase側でこのログイン方法が有効になっていません。";
+
+        case "auth/too-many-requests":
+
+            return "試行回数が多すぎます。しばらく時間を置いてください。";
+
+        case "auth/network-request-failed":
+
+            return "ネットワークエラーが発生しました。接続を確認してください。";
+
+        default:
+
+            return "認証に失敗しました。もう一度お試しください。";
+    }
+}
+
+
+/* =========================================================
+   認証メッセージ
+========================================================= */
+
+function showAuthMessage(message) {
+
+    const element =
+        document.getElementById("authMessage");
+
+    if (element) {
+
+        element.textContent =
+            message;
+    }
+}
+
+
+function clearAuthMessage() {
+
+    const element =
+        document.getElementById("authMessage");
+
+    if (element) {
+
+        element.textContent = "";
+    }
+}
+
+
+function setAuthButtonDisabled(disabled) {
+
+    const button =
+        document.getElementById("authButton");
+
+    if (button) {
+
+        button.disabled = disabled;
+    }
+}
+
+
+/* =========================================================
+   匿名アカウントで試す
+========================================================= */
+
+async function startAsAnonymous() {
+
+    if (!auth) {
+        return;
+    }
+
+
+    const message =
+        document.getElementById("homeMessage");
+
+
+    if (message) {
+
+        message.textContent =
+            "準備しています...";
+    }
+
+
+    try {
+
+        /*
+         * すでにログイン済みならそのまま使う。
+         */
+
+        if (auth.currentUser) {
+
+            currentUser =
+                auth.currentUser;
+
+            showPage("sheetPage");
+
+            return;
+        }
+
+
+        await auth.signInAnonymously();
+
+    } catch (error) {
+
+        console.error(
+            "匿名ログインエラー:",
+            error
+        );
+
+
+        if (message) {
+
+            message.textContent =
+                "お試し利用を開始できませんでした。";
+        }
+    }
+}
+
+
+/* =========================================================
+   ログアウト
+========================================================= */
+
+async function logout() {
+
+    if (!auth) {
+        return;
+    }
+
+
+    try {
+
+        await auth.signOut();
+
+        /*
+         * onAuthStateChanged() が
+         * 自動的にトップ画面へ移動します。
+         */
+
+    } catch (error) {
+
+        console.error(
+            "ログアウトエラー:",
+            error
+        );
+
+
+        const message =
+            document.getElementById("accountMessage");
+
+
+        if (message) {
+
+            message.textContent =
+                "ログアウトに失敗しました。";
+        }
+    }
+}
+
+
+/* =========================================================
+   ログイン後の初期化
+========================================================= */
+
+async function initializeAppAfterLogin() {
+
+    try {
+
+        await loadSheets();
+
+        await loadProgress();
+
+        renderSheetList();
+
+        loadProgressSheetList();
+
+    } catch (error) {
+
+        console.error(
+            "アプリ初期化エラー:",
+            error
+        );
+    }
+}
+
+
+/* =========================================================
+   Google Sheets
+========================================================= */
+
+async function loadSheets() {
+
+    const url =
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}` +
+        `?fields=sheets.properties` +
+        `&key=${GOOGLE_SHEETS_API_KEY}`;
+
+
+    const response =
+        await fetch(url);
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            `Google Sheets API error: ${response.status}`
+        );
+    }
+
+
+    const data =
+        await response.json();
+
+
+    SHEETS =
+        (data.sheets || [])
+            .map(sheet => ({
+
+                title:
+                    sheet.properties.title,
+
+                sheetId:
+                    sheet.properties.sheetId
+
+            }));
+
+
+    return SHEETS;
+}
+
+
+/* =========================================================
+   シートのデータ取得
+========================================================= */
+
+async function fetchSheetCSV(sheetName) {
+
+    const range =
+        encodeURIComponent(
+            `'${sheetName}'`
+        );
+
+
+    const url =
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}` +
+        `?key=${GOOGLE_SHEETS_API_KEY}`;
+
+
+    const response =
+        await fetch(url);
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            `Sheet data error: ${response.status}`
+        );
+    }
+
+
+    const data =
+        await response.json();
+
+
+    return data.values || [];
+}
+
+
+/* =========================================================
+   CSV / Sheetデータ解析
+========================================================= */
+
+function parseSheetData(values) {
+
+    if (!values || values.length < 2) {
+
+        return [];
+    }
+
+
+    const headers =
+        values[0].map(
+            header =>
+                String(header || "")
+                    .trim()
+                    .toLowerCase()
+        );
+
+
+    const frontIndex =
+        findColumnIndex(
+            headers,
+            [
+                "表面",
+                "front",
+                "word",
+                "単語",
+                "英語"
+            ]
+        );
+
+
+    const backIndex =
+        findColumnIndex(
+            headers,
+            [
+                "裏面",
+                "back",
+                "meaning",
+                "意味",
+                "日本語"
+            ]
+        );
+
+
+    /*
+     * ヘッダーが見つからない場合は
+     * 1列目 → 表面
+     * 2列目 → 裏面
+     */
+
+    const actualFrontIndex =
+        frontIndex >= 0
+            ? frontIndex
+            : 0;
+
+
+    const actualBackIndex =
+        backIndex >= 0
+            ? backIndex
+            : 1;
+
+
+    const words = [];
+
+
+    for (
+        let i = 1;
+        i < values.length;
+        i++
+    ) {
+
+        const row =
+            values[i];
+
+
+        const front =
+            String(
+                row[actualFrontIndex] || ""
+            ).trim();
+
+
+        const back =
+            String(
+                row[actualBackIndex] || ""
+            ).trim();
+
+
+        if (!front || !back) {
+
+            continue;
+        }
+
+
+        words.push({
+
+            front,
+            back
+
+        });
+    }
+
+
+    return words;
+}
+
+
+/* =========================================================
+   列検索
+========================================================= */
+
+function findColumnIndex(headers, names) {
+
+    for (const name of names) {
+
+        const index =
+            headers.indexOf(
+                name.toLowerCase()
+            );
+
+
+        if (index >= 0) {
+
+            return index;
+        }
+    }
+
+
+    return -1;
+}
+
+
+/* =========================================================
+   ジャンル一覧
+========================================================= */
+
+function renderSheetList() {
+
+    const container =
+        document.getElementById("sheetList");
+
+
+    if (!container) {
+        return;
+    }
+
+
+    if (SHEETS.length === 0) {
+
+        container.innerHTML =
+            "<p>ジャンルが見つかりません。</p>";
+
+        return;
+    }
+
+
+    container.innerHTML = "";
+
+
+    SHEETS.forEach((sheet) => {
+
+        const button =
+            document.createElement("button");
+
+
+        button.className =
+            "sheet-option";
+
+
+        button.textContent =
+            sheet.title;
+
+
+        button.onclick = () => {
+
+            selectSheet(sheet);
+        };
+
+
+        container.appendChild(
+            button
+        );
+    });
+}
+
+
+/* =========================================================
+   ジャンル選択
+========================================================= */
+
+async function selectSheet(sheet) {
+
+    selectedSheet = sheet;
+
+
+    const container =
+        document.getElementById("sheetList");
+
+
+    if (container) {
+
+        const buttons =
+            container.querySelectorAll(
+                ".sheet-option"
+            );
+
+
+        buttons.forEach(button => {
+
+            button.classList.toggle(
+                "selected",
+                button.textContent === sheet.title
+            );
+        });
+    }
+
+
+    const startButton =
+        document.getElementById("startButton");
+
+
+    if (startButton) {
+
+        startButton.disabled = false;
+    }
+}
+
+
+/* =========================================================
+   学習開始前
+========================================================= */
+
+async function startStudy() {
+
+    if (!selectedSheet) {
+        return;
+    }
+
+
+    const message =
+        document.getElementById(
+            "settingsMessage"
+        );
+
+
+    if (message) {
+
+        message.textContent =
+            "単語を読み込んでいます...";
+    }
+
+
+    try {
+
+        const values =
+            await fetchSheetCSV(
+                selectedSheet.title
+            );
+
+
+        studyWords =
+            parseSheetData(values);
+
+
+        if (studyWords.length === 0) {
+
+            if (message) {
+
+                message.textContent =
+                    "このジャンルには単語がありません。";
+            }
+
+            return;
+        }
+
+
+        updateFormatLabels();
+
+        updateBeginStudyButton();
+
+        showPage("settingsPage");
+
+    } catch (error) {
+
+        console.error(
+            "単語取得エラー:",
+            error
+        );
+
+
+        if (message) {
+
+            message.textContent =
+                "単語の読み込みに失敗しました。";
+        }
+    }
+}
+
+
+/* =========================================================
+   学習設定
+========================================================= */
+
+function selectSetting(button) {
+
+    const setting =
+        button.dataset.setting;
+
+
+    const value =
+        button.dataset.value;
+
+
+    studySettings[setting] =
+        value;
+
+
+    document
+        .querySelectorAll(
+            `.setting-option[data-setting="${setting}"]`
+        )
+        .forEach(option => {
+
+            option.classList.toggle(
+                "selected",
+                option === button
+            );
+
+        });
+
+
+    updateBeginStudyButton();
+}
+
+
+/* =========================================================
+   学習開始ボタン
+========================================================= */
+
+function updateBeginStudyButton() {
+
+    const button =
+        document.getElementById(
+            "beginStudyButton"
+        );
+
+
+    if (!button) {
+        return;
+    }
+
+
+    button.disabled =
+        !selectedSheet ||
+        studyWords.length === 0;
+}
+
+
+/* =========================================================
+   表面 / 裏面ラベル
+========================================================= */
+
+function updateFormatLabels() {
+
+    const front =
+        document.getElementById(
+            "frontToBackLabel"
+        );
+
+
+    const back =
+        document.getElementById(
+            "backToFrontLabel"
+        );
+
+
+    if (front) {
+
+        front.textContent =
+            "表面 → 裏面";
+    }
+
+
+    if (back) {
+
+        back.textContent =
+            "裏面 → 表面";
+    }
+}
+
+
+/* =========================================================
+   学習開始
+========================================================= */
+
+async function beginStudy() {
+
+    if (!studyWords.length) {
+        return;
+    }
+
+
+    let words =
+        [...studyWords];
+
+
+    /*
+     * 学習モード
+     */
+
+    if (studySettings.mode === "weak") {
+
+        words =
+            words.filter(word => {
+
+                const data =
+                    getWordProgress(word);
+
+
+                if (!data.total) {
+                    return false;
+                }
+
+
+                return (
+                    data.wrong /
+                    data.total
+                ) >= 0.41;
+            });
+    }
+
+
+    if (studySettings.mode === "unlearned") {
+
+        words =
+            words.filter(word => {
+
+                const data =
+                    getWordProgress(word);
+
+
+                return data.total === 0;
+            });
+    }
+
+
+    if (studySettings.mode === "incorrect") {
+
+        words =
+            words.filter(word => {
+
+                const data =
+                    getWordProgress(word);
+
+
+                return data.wrong > 0;
+            });
+    }
+
+
+    if (words.length === 0) {
+
+        const message =
+            document.getElementById(
+                "settingsMessage"
+            );
+
+
+        if (message) {
+
+            message.textContent =
+                "条件に該当する単語がありません。";
+        }
+
+
+        return;
+    }
+
+
+    shuffleArray(words);
+
+
+    /*
+     * 問題数
+     */
+
+    if (studySettings.count !== "unlimited") {
+
+        const count =
+            Number(
+                studySettings.count
+            );
+
+
+        words =
+            words.slice(
+                0,
+                count
+            );
+    }
+
+
+    studyWords =
+        words;
+
+
+    currentIndex = 0;
+
+    sessionResults = [];
+
+    sessionCorrect = 0;
+
+    sessionAnswered = 0;
+
+
+    const sheetName =
+        document.getElementById(
+            "currentSheetName"
+        );
+
+
+    if (sheetName) {
+
+        sheetName.textContent =
+            selectedSheet.title;
+    }
+
+
+    showPage("studyPage");
+
+    showQuestion();
+}
+
+
+/* =========================================================
+   問題表示
+========================================================= */
+
+function showQuestion() {
+
+    if (
+        currentIndex >=
+        studyWords.length
+    ) {
+
+        finishStudy();
+
+        return;
+    }
+
+
+    currentWord =
+        studyWords[currentIndex];
+
+
+    const question =
+        document.getElementById(
+            "question"
+        );
+
+
+    const questionType =
+        document.getElementById(
+            "questionType"
+        );
+
+
+    const choices =
+        document.getElementById(
+            "choices"
+        );
+
+
+    const result =
+        document.getElementById(
+            "result"
+        );
+
+
+    const nextButton =
+        document.getElementById(
+            "nextButton"
+        );
+
+
+    if (nextButton) {
+
+        nextButton.style.display =
+            "none";
+    }
+
+
+    if (result) {
+
+        result.textContent = "";
+    }
+
+
+    if (!question || !choices) {
+        return;
+    }
+
+
+    choices.innerHTML = "";
+
+
+    const isFrontToBack =
+        studySettings.format ===
+        "frontToBack";
+
+
+    const questionText =
+        isFrontToBack
+            ? currentWord.front
+            : currentWord.back;
+
+
+    const answerText =
+        isFrontToBack
+            ? currentWord.back
+            : currentWord.front;
+
+
+    if (questionType) {
+
+        questionType.textContent =
+            isFrontToBack
+                ? "表面 → 裏面"
+                : "裏面 → 表面";
+    }
+
+
+    question.textContent =
+        questionText;
+
+
+    /*
+     * 正解 + 他の選択肢
+     */
+
+    const candidateWords =
+        studyWords.filter(
+            word =>
+                word !== currentWord
+        );
+
+
+    shuffleArray(candidateWords);
+
+
+    const otherChoices =
+        candidateWords
+            .slice(0, 3)
+            .map(word =>
+                isFrontToBack
+                    ? word.back
+                    : word.front
+            );
+
+
+    const choiceTexts =
+        [
+            answerText,
+            ...otherChoices
+        ];
+
+
+    shuffleArray(choiceTexts);
+
+
+    choiceTexts.forEach(
+        choiceText => {
+
+            const button =
+                document.createElement(
+                    "button"
+                );
+
+
+            /*
+             * CSSの .choice と一致させる
+             */
+
+            button.className =
+                "choice";
+
+
+            button.textContent =
+                choiceText;
+
+
+            button.onclick = () => {
+
+                answerQuestion(
+                    choiceText,
+                    answerText,
+                    button
+                );
+            };
+
+
+            choices.appendChild(
+                button
+            );
+        }
+    );
+
+
+    updateSessionInfo();
+}
+
+
+/* =========================================================
+   回答
+========================================================= */
+
+async function answerQuestion(
+    selectedAnswer,
+    correctAnswer,
+    clickedButton
+) {
+
+    const choices =
+        document.getElementById(
+            "choices"
+        );
+
+
+    const buttons =
+        choices
+            ? choices.querySelectorAll(
+                "button"
+            )
+            : [];
+
+
+    /*
+     * 回答後はすべての選択肢を無効化
+     */
+
+    buttons.forEach(
+        button => {
+
+            button.disabled = true;
+
+        }
+    );
+
+
+    const isCorrect =
+        selectedAnswer ===
+        correctAnswer;
+
+
+    sessionAnswered++;
+
+
+    if (isCorrect) {
+
+        sessionCorrect++;
+    }
+
+
+    sessionResults.push({
+
+        word: currentWord,
+        correct: isCorrect
+
+    });
+
+
+    /*
+     * Firestoreへ保存
+     */
+
+    await recordAnswer(
+        currentWord,
+        isCorrect
+    );
+
+
+    const result =
+        document.getElementById(
+            "result"
+        );
+
+
+    if (result) {
+
+        result.textContent =
+            isCorrect
+                ? "正解！"
+                : `不正解。正解は「${correctAnswer}」です。`;
+    }
+
+
+    /*
+     * 選択したボタンの色
+     *
+     * 正解 → correct
+     * 不正解 → wrong
+     */
+
+    if (clickedButton) {
+
+        clickedButton.classList.add(
+            isCorrect
+                ? "correct"
+                : "wrong"
+        );
+    }
+
+
+    /*
+     * 不正解だった場合、
+     * 正解の選択肢も薄緑にする。
+     */
+
+    if (!isCorrect) {
+
+        buttons.forEach(button => {
+
+            if (
+                button.textContent ===
+                correctAnswer
+            ) {
+
+                button.classList.add(
+                    "correct"
+                );
+            }
+
+        });
+    }
+
+
+    const nextButton =
+        document.getElementById(
+            "nextButton"
+        );
+
+
+    if (nextButton) {
+
+        nextButton.style.display =
+            "block";
+    }
+
+
+    updateSessionInfo();
+}
+
+
+/* =========================================================
+   次の問題
+========================================================= */
+
+function nextQuestion() {
+
+    currentIndex++;
+
+    showQuestion();
+}
+
+
+/* =========================================================
+   セッション情報
+========================================================= */
+
+function updateSessionInfo() {
+
+    const progressElement =
+        document.getElementById(
+            "sessionProgress"
+        );
+
+
+    const accuracyElement =
+        document.getElementById(
+            "sessionAccuracy"
+        );
+
+
+    if (progressElement) {
+
+        progressElement.textContent =
+            `${Math.min(
+                currentIndex + 1,
+                studyWords.length
+            )} / ${studyWords.length}問`;
+    }
+
+
+    const accuracy =
+        sessionAnswered === 0
+            ? 0
+            : Math.round(
+                sessionCorrect /
+                sessionAnswered *
+                100
+            );
+
+
+    if (accuracyElement) {
+
+        accuracyElement.textContent =
+            `正答率 ${accuracy}%`;
+    }
+}
+
+
+/* =========================================================
+   学習終了
+========================================================= */
+
+function finishStudy() {
+
+    const question =
+        document.getElementById(
+            "question"
+        );
+
+
+    const choices =
+        document.getElementById(
+            "choices"
+        );
+
+
+    const result =
+        document.getElementById(
+            "result"
+        );
+
+
+    const nextButton =
+        document.getElementById(
+            "nextButton"
+        );
+
+
+    if (question) {
+
+        question.textContent =
+            "学習終了！";
+    }
+
+
+    if (choices) {
+
+        choices.innerHTML = "";
+    }
+
+
+    if (result) {
+
+        const accuracy =
+            sessionAnswered === 0
+                ? 0
+                : Math.round(
+                    sessionCorrect /
+                    sessionAnswered *
+                    100
+                );
+
+
+        result.textContent =
+            `${sessionAnswered}問中 ${sessionCorrect}問正解（正答率 ${accuracy}%）`;
+    }
+
+
+    if (nextButton) {
+
+        nextButton.style.display =
+            "none";
+    }
+
+
+    const reviewButton =
+        document.getElementById(
+            "reviewButton"
+        );
+
+
+    if (reviewButton) {
+
+        const wrongCount =
+            sessionResults.filter(
+                result =>
+                    !result.correct
+            ).length;
+
+
+        reviewButton.style.display =
+            wrongCount > 0
+                ? "block"
+                : "none";
+    }
+}
+
+
+/* =========================================================
+   間違えた問題を復習
+========================================================= */
+
+function startWrongReview() {
+
+    const wrongWords =
+        sessionResults
+            .filter(
+                result =>
+                    !result.correct
+            )
+            .map(
+                result =>
+                    result.word
+            );
+
+
+    if (wrongWords.length === 0) {
+        return;
+    }
+
+
+    studyWords =
+        wrongWords;
+
+
+    currentIndex = 0;
+
+    sessionResults = [];
+
+    sessionCorrect = 0;
+
+    sessionAnswered = 0;
+
+
+    showQuestion();
+}
+
+
+/* =========================================================
+   ジャンル変更
+========================================================= */
+
+function changeStudySheet() {
+
+    selectedSheet = null;
+
+    studyWords = [];
+
+    currentIndex = 0;
+
+
+    const startButton =
+        document.getElementById(
+            "startButton"
+        );
+
+
+    if (startButton) {
+
+        startButton.disabled =
+            true;
+    }
+
+
+    renderSheetList();
+
+    showPage("sheetPage");
+}
+
+
+/* =========================================================
+   ジャンル選択へ戻る
+========================================================= */
+
+function backToSheetSelection() {
+
+    showPage("sheetPage");
+}
+
+
+/* =========================================================
+   Firestore：進捗取得
+========================================================= */
+
+async function loadProgress() {
+
+    if (
+        !db ||
+        !currentUser ||
+        currentUser.isAnonymous
+    ) {
+
+        progress = {};
+
+        return;
+    }
+
+
+    try {
+
+        const snapshot =
+            await db
+                .collection("users")
+                .doc(currentUser.uid)
+                .collection("progress")
+                .get();
+
+
+        progress = {};
+
+
+        snapshot.forEach(
+            document => {
+
+                progress[
+                    document.id
+                ] =
+                    document.data();
+
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "進捗読み込みエラー:",
+            error
+        );
+    }
+}
+
+
+/* =========================================================
+   Firestore：単語の進捗取得
+========================================================= */
+
+function getProgressDocumentId(
+    sheetName
+) {
+
+    return sanitizeId(
+        sheetName
+    );
+}
+
+
+function getWordKey(word) {
+
+    return sanitizeId(
+        word.front
+    );
+}
+
+
+function sanitizeId(text) {
+
+    return String(text)
+        .replace(
+            /[\/\\.#$[\]]/g,
+            "_"
+        )
+        .replace(
+            /\s+/g,
+            "_"
+        )
+        .slice(
+            0,
+            120
+        );
+}
+
+
+function getWordProgress(word) {
+
+    if (!selectedSheet) {
+
+        return {
+            correct: 0,
+            wrong: 0,
+            total: 0
+        };
+    }
+
+
+    const sheetKey =
+        getProgressDocumentId(
+            selectedSheet.title
+        );
+
+
+    const sheetProgress =
+        progress[sheetKey] || {};
+
+
+    return sheetProgress[
+        getWordKey(word)
+    ] || {
+
+        correct: 0,
+        wrong: 0,
+        total: 0
+
+    };
+}
+
+
+/* =========================================================
+   Firestore：回答保存
+========================================================= */
+
+async function recordAnswer(
+    word,
+    isCorrect
+) {
+
+    if (
+        !db ||
+        !currentUser ||
+        currentUser.isAnonymous
+    ) {
+
+        return;
+    }
+
+
+    const sheetKey =
+        getProgressDocumentId(
+            selectedSheet.title
+        );
+
+
+    const wordKey =
+        getWordKey(word);
+
+
+    const current =
+        getWordProgress(word);
+
+
+    const updated = {
+
+        correct:
+            current.correct +
+            (isCorrect ? 1 : 0),
+
+        wrong:
+            current.wrong +
+            (isCorrect ? 0 : 1),
+
+        total:
+            current.total + 1,
+
+        lastAnswered:
+            firebase.firestore
+                .FieldValue
+                .serverTimestamp()
+
+    };
+
+
+    if (!progress[sheetKey]) {
+
+        progress[sheetKey] = {};
+    }
+
+
+    progress[sheetKey][wordKey] =
+        updated;
+
+
+    try {
+
+        await db
+            .collection("users")
+            .doc(currentUser.uid)
+            .collection("progress")
+            .doc(sheetKey)
+            .set(
+                {
+                    [wordKey]: updated
+                },
+                {
+                    merge: true
+                }
+            );
+
+    } catch (error) {
+
+        console.error(
+            "進捗保存エラー:",
+            error
+        );
+    }
+}
+
+
+/* =========================================================
+   学習状況：ジャンル一覧
+========================================================= */
+
+function loadProgressSheetList() {
+
+    const container =
+        document.getElementById(
+            "progressSheetList"
+        );
+
+
+    if (!container) {
+        return;
+    }
+
+
+    container.innerHTML = "";
+
+
+    if (SHEETS.length === 0) {
+
+        container.innerHTML =
+            "<p>ジャンルがありません。</p>";
+
+        return;
+    }
+
+
+    SHEETS.forEach(sheet => {
+
+        const button =
+            document.createElement(
+                "button"
+            );
+
+
+        button.className =
+            "sheet-option";
+
+
+        button.textContent =
+            sheet.title;
+
+
+        button.onclick = async () => {
+
+            selectedSheet =
+                sheet;
+
+
+            await renderProgress(
+                sheet
+            );
+        };
+
+
+        container.appendChild(
+            button
+        );
+    });
+}
+
+
+/* =========================================================
+   学習状況表示
+========================================================= */
+
+async function renderProgress(
+    sheet
+) {
+
+    selectedSheet = sheet;
+
+
+    const name =
+        document.getElementById(
+            "progressSheetName"
+        );
+
+
+    if (name) {
+
+        name.textContent =
+            sheet.title;
+    }
+
+
+    let values;
+
+
+    try {
+
+        values =
+            await fetchSheetCSV(
+                sheet.title
+            );
+
+    } catch (error) {
+
+        console.error(
+            error
+        );
+
+        return;
+    }
+
+
+    const words =
+        parseSheetData(
+            values
+        );
+
+
+    const sheetKey =
+        getProgressDocumentId(
+            sheet.title
+        );
+
+
+    const sheetProgress =
+        progress[sheetKey] || {};
+
+
+    let totalQuestions = 0;
+
+    let totalCorrect = 0;
+
+    let currentStreak = 0;
+
+    let bestStreak = 0;
+
+
+    const buckets = [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+    ];
+
+
+    const wordData = [];
+
+
+    words.forEach(word => {
+
+        const data =
+            sheetProgress[
+                getWordKey(word)
+            ] || {
+
+                correct: 0,
+                wrong: 0,
+                total: 0
+
+            };
+
+
+        totalQuestions +=
+            data.total;
+
+
+        totalCorrect +=
+            data.correct;
+
+
+        if (data.total === 0) {
+
+            buckets[5]++;
+
+        } else {
+
+            const wrongRate =
+                data.wrong /
+                data.total *
+                100;
+
+
+            if (wrongRate <= 20) {
+
+                buckets[0]++;
+
+            } else if (wrongRate <= 40) {
+
+                buckets[1]++;
+
+            } else if (wrongRate <= 60) {
+
+                buckets[2]++;
+
+            } else if (wrongRate <= 80) {
+
+                buckets[3]++;
+
+            } else {
+
+                buckets[4]++;
+            }
+        }
+
+
+        wordData.push({
+
+            word,
+            ...data
+
+        });
+    });
+
+
+    const overallAccuracy =
+        totalQuestions === 0
+            ? 0
+            : Math.round(
+                totalCorrect /
+                totalQuestions *
+                100
+            );
+
+
+    setText(
+        "totalQuestions",
+        totalQuestions
+    );
+
+
+    setText(
+        "overallAccuracy",
+        `${overallAccuracy}%`
+    );
+
+
+    setText(
+        "currentStreak",
+        currentStreak
+    );
+
+
+    setText(
+        "bestStreak",
+        bestStreak
+    );
+
+
+    buckets.forEach(
+        (count, index) => {
+
+            setText(
+                `bucket${index}`,
+                `${count}単語`
+            );
+        }
+    );
+
+
+    renderWordProgressList(
+        wordData
+    );
+}
+
+
+/* =========================================================
+   単語別学習状況
+========================================================= */
+
+function renderWordProgress() {
+
+    if (!selectedSheet) {
+        return;
+    }
+
+
+    renderProgress(
+        selectedSheet
+    );
+}
+
+
+function renderWordProgressList(
+    wordData
+) {
+
+    const container =
+        document.getElementById(
+            "wordProgressList"
+        );
+
+
+    if (!container) {
+        return;
+    }
+
+
+    const sort =
+        document.getElementById(
+            "wordSortSelect"
+        )?.value ||
+        "weak";
+
+
+    const data =
+        [...wordData];
+
+
+    data.sort(
+        (a, b) => {
+
+            const aTotal =
+                a.total || 0;
+
+            const bTotal =
+                b.total || 0;
+
+
+            const aAccuracy =
+                aTotal === 0
+                    ? 0
+                    : a.correct /
+                      aTotal;
+
+
+            const bAccuracy =
+                bTotal === 0
+                    ? 0
+                    : b.correct /
+                      bTotal;
+
+
+            if (sort === "weak") {
+
+                return (
+                    aAccuracy -
+                    bAccuracy
+                );
+            }
+
+
+            if (sort === "accuracy") {
+
+                return (
+                    bAccuracy -
+                    aAccuracy
+                );
+            }
+
+
+            if (sort === "questions") {
+
+                return (
+                    bTotal -
+                    aTotal
+                );
+            }
+
+
+            if (sort === "unlearned") {
+
+                return (
+                    aTotal -
+                    bTotal
+                );
+            }
+
+
+            if (sort === "alphabetical") {
+
+                return a.word.front
+                    .localeCompare(
+                        b.word.front
+                    );
+            }
+
+
+            return 0;
+        }
+    );
+
+
+    container.innerHTML = "";
+
+
+    data.forEach(item => {
+
+        const total =
+            item.total || 0;
+
+
+        const correct =
+            item.correct || 0;
+
+
+        const wrong =
+            item.wrong || 0;
+
+
+        const accuracy =
+            total === 0
+                ? 0
+                : Math.round(
+                    correct /
+                    total *
+                    100
+                );
+
+
+        const div =
+            document.createElement(
+                "div"
+            );
+
+
+        div.className =
+            "word-progress-item";
+
+
+        div.innerHTML = `
+            <div>
+                <strong>${escapeHtml(item.word.front)}</strong>
+                <span>${escapeHtml(item.word.back)}</span>
             </div>
 
-        </div>
-
-
-        <div class="setting-section">
-
-            <h3>出題形式</h3>
-
-            <div class="setting-options horizontal">
-
-                <button
-                    id="frontToBackButton"
-                    class="setting-option selected"
-                    data-setting="format"
-                    data-value="frontToBack"
-                    onclick="selectSetting(this)"
-                >
-                    <strong id="frontToBackLabel">
-                        表面 → 裏面
-                    </strong>
-                </button>
-
-                <button
-                    id="backToFrontButton"
-                    class="setting-option"
-                    data-setting="format"
-                    data-value="backToFront"
-                    onclick="selectSetting(this)"
-                >
-                    <strong id="backToFrontLabel">
-                        裏面 → 表面
-                    </strong>
-                </button>
-
+            <div>
+                ${
+                    total === 0
+                        ? "未学習"
+                        : `正答率 ${accuracy}% / ${total}回`
+                }
             </div>
+        `;
 
-        </div>
-
-
-        <div class="setting-section">
-
-            <h3>問題数</h3>
 
-            <div class="setting-options horizontal">
+        container.appendChild(
+            div
+        );
+    });
+}
 
-                <button
-                    class="setting-option selected"
-                    data-setting="count"
-                    data-value="10"
-                    onclick="selectSetting(this)"
-                >
-                    <strong>10問</strong>
-                </button>
 
-                <button
-                    class="setting-option"
-                    data-setting="count"
-                    data-value="20"
-                    onclick="selectSetting(this)"
-                >
-                    <strong>20問</strong>
-                </button>
+/* =========================================================
+   学習状況リセット
+========================================================= */
 
-                <button
-                    class="setting-option"
-                    data-setting="count"
-                    data-value="50"
-                    onclick="selectSetting(this)"
-                >
-                    <strong>50問</strong>
-                </button>
+async function resetProgress() {
 
-                <button
-                    class="setting-option"
-                    data-setting="count"
-                    data-value="unlimited"
-                    onclick="selectSetting(this)"
-                >
-                    <strong>無制限</strong>
-                </button>
+    if (
+        !currentUser ||
+        currentUser.isAnonymous ||
+        !selectedSheet
+    ) {
 
-            </div>
+        return;
+    }
 
-        </div>
 
+    const confirmed =
+        window.confirm(
+            "このジャンルの学習状況をすべてリセットしますか？"
+        );
 
-        <div
-            id="settingsMessage"
-            class="settings-message"
-        ></div>
 
-        <button
-            id="beginStudyButton"
-            onclick="beginStudy()"
-            disabled
-        >
-            学習開始
-        </button>
+    if (!confirmed) {
+        return;
+    }
 
-        <button
-            class="back-button"
-            onclick="backToSheetSelection()"
-        >
-            ジャンル選択に戻る
-        </button>
 
-    </div>
+    const sheetKey =
+        getProgressDocumentId(
+            selectedSheet.title
+        );
 
-</section>
 
+    try {
 
-<!-- =========================
-     学習
-========================= -->
+        await db
+            .collection("users")
+            .doc(currentUser.uid)
+            .collection("progress")
+            .doc(sheetKey)
+            .delete();
 
-<section id="studyPage" style="display:none;">
 
-    <div class="current-sheet">
+        delete progress[sheetKey];
 
-        <span>
-            出題中：
-            <strong id="currentSheetName">-</strong>
-        </span>
 
-        <div class="study-controls">
+        await renderProgress(
+            selectedSheet
+        );
 
-            <button
-                onclick="showPage('settingsPage')"
-                class="change-sheet-button"
-            >
-                設定変更
-            </button>
+    } catch (error) {
 
-            <button
-                onclick="changeStudySheet()"
-                class="change-sheet-button"
-            >
-                ジャンル変更
-            </button>
+        console.error(
+            "進捗リセットエラー:",
+            error
+        );
+    }
+}
 
-        </div>
 
-    </div>
+/* =========================================================
+   アカウント画面
+========================================================= */
 
+function updateAccountPage() {
 
-    <div
-        id="sessionInfo"
-        class="session-info"
-    >
-        <span id="sessionProgress">
-            0 / 10問
-        </span>
+    const status =
+        document.getElementById(
+            "accountStatus"
+        );
 
-        <span id="sessionAccuracy">
-            正答率 0%
-        </span>
-    </div>
 
+    const email =
+        document.getElementById(
+            "accountEmail"
+        );
 
-    <div class="question-box">
 
-        <div id="questionType">
-            表面 → 裏面
-        </div>
+    const registerButton =
+        document.getElementById(
+            "accountRegisterButton"
+        );
 
-        <div id="question">
-            読み込み中...
-        </div>
 
-    </div>
+    if (!currentUser) {
 
+        if (status) {
 
-    <div id="choices"></div>
+            status.textContent =
+                "未ログイン";
+        }
 
-    <div id="result"></div>
 
+        if (email) {
 
-    <button
-        id="nextButton"
-        onclick="nextQuestion()"
-        style="display:none;"
-    >
-        次の問題
-    </button>
+            email.textContent =
+                "-";
+        }
 
 
-    <button
-        id="reviewButton"
-        onclick="startWrongReview()"
-        style="display:none;"
-    >
-        間違えた単語を復習
-    </button>
+        if (registerButton) {
 
-</section>
+            registerButton.style.display =
+                "none";
+        }
 
 
-<!-- =========================
-     学習状況
-========================= -->
+        return;
+    }
 
-<section id="progressPage" style="display:none;">
 
-    <div class="settings-box">
+    if (currentUser.isAnonymous) {
 
-        <h2>学習状況を見るジャンル</h2>
+        if (status) {
 
-        <div id="progressSheetList"></div>
+            status.textContent =
+                "匿名アカウント（お試し利用中）";
+        }
 
-    </div>
 
+        if (email) {
 
-    <div class="current-sheet">
+            email.textContent =
+                "未登録";
+        }
 
-        学習状況：
-        <strong id="progressSheetName">-</strong>
 
-    </div>
+        if (registerButton) {
 
+            registerButton.style.display =
+                "block";
+        }
 
-    <div class="stats">
+    } else {
 
-        <div class="stat">
-            <div class="stat-label">総問題数</div>
-            <div id="totalQuestions" class="stat-value">0</div>
-        </div>
+        if (status) {
 
-        <div class="stat">
-            <div class="stat-label">全体正答率</div>
-            <div id="overallAccuracy" class="stat-value">0%</div>
-        </div>
+            status.textContent =
+                "ログイン中";
+        }
 
-        <div class="stat">
-            <div class="stat-label">現在の連続正解</div>
-            <div id="currentStreak" class="stat-value">0</div>
-        </div>
 
-        <div class="stat">
-            <div class="stat-label">最高連続正解</div>
-            <div id="bestStreak" class="stat-value">0</div>
-        </div>
+        if (email) {
 
-    </div>
+            email.textContent =
+                currentUser.email ||
+                "-";
+        }
 
 
-    <h2>単語の学習状況</h2>
+        if (registerButton) {
 
-    <div class="buckets">
+            registerButton.style.display =
+                "none";
+        }
+    }
+}
 
-        <div class="bucket">
-            <div>誤答率 0～20%</div>
-            <strong id="bucket0">0単語</strong>
-        </div>
 
-        <div class="bucket">
-            <div>誤答率 21～40%</div>
-            <strong id="bucket1">0単語</strong>
-        </div>
+/* =========================================================
+   ユーティリティ
+========================================================= */
 
-        <div class="bucket">
-            <div>誤答率 41～60%</div>
-            <strong id="bucket2">0単語</strong>
-        </div>
+function setText(
+    id,
+    value
+) {
 
-        <div class="bucket">
-            <div>誤答率 61～80%</div>
-            <strong id="bucket3">0単語</strong>
-        </div>
+    const element =
+        document.getElementById(id);
 
-        <div class="bucket">
-            <div>誤答率 81～100%</div>
-            <strong id="bucket4">0単語</strong>
-        </div>
 
-        <div class="bucket">
-            <div>未学習</div>
-            <strong id="bucket5">0単語</strong>
-        </div>
+    if (element) {
 
-    </div>
+        element.textContent =
+            value;
+    }
+}
 
 
-    <div class="word-progress-header">
+function escapeHtml(text) {
 
-        <h2>単語別の学習状況</h2>
+    return String(text)
 
-        <select
-            id="wordSortSelect"
-            onchange="renderWordProgress()"
-        >
-            <option value="weak">苦手順</option>
-            <option value="accuracy">正答率順</option>
-            <option value="questions">出題回数順</option>
-            <option value="unlearned">未学習を上に</option>
-            <option value="alphabetical">表面順</option>
-        </select>
+        .replace(
+            /&/g,
+            "&amp;"
+        )
 
-    </div>
+        .replace(
+            /</g,
+            "&lt;"
+        )
 
+        .replace(
+            />/g,
+            "&gt;"
+        )
 
-    <div
-        id="wordProgressList"
-        class="word-progress-list"
-    ></div>
+        .replace(
+            /"/g,
+            "&quot;"
+        )
 
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+}
 
-    <button
-        id="resetButton"
-        onclick="resetProgress()"
-    >
-        このジャンルの学習状況をリセット
-    </button>
 
-</section>
+function shuffleArray(array) {
 
+    for (
+        let i = array.length - 1;
+        i > 0;
+        i--
+    ) {
 
-<!-- =========================
-     アカウント
-========================= -->
+        const j =
+            Math.floor(
+                Math.random() *
+                (i + 1)
+            );
 
-<section id="accountPage" style="display:none;">
 
-    <div class="settings-box">
+        [
+            array[i],
+            array[j]
+        ] = [
+            array[j],
+            array[i]
+        ];
+    }
 
-        <h2>アカウント</h2>
 
-        <div class="account-info">
-
-            <div class="account-label">
-                アカウント状態
-            </div>
-
-            <div
-                id="accountStatus"
-                class="account-email"
-            >
-                -
-            </div>
-
-
-            <div class="account-label">
-                メールアドレス
-            </div>
-
-            <div
-                id="accountEmail"
-                class="account-email"
-            >
-                -
-            </div>
-
-        </div>
-
-
-        <div
-            id="accountMessage"
-            class="account-message"
-        ></div>
-
-
-        <button
-            id="accountRegisterButton"
-            onclick="openRegisterPage()"
-        >
-            アカウントを登録する
-        </button>
-
-
-        <button
-            class="account-logout-button"
-            onclick="logout()"
-        >
-            ログアウト
-        </button>
-
-    </div>
-
-</section>
-
-</main>
-
-
-<script src="script.js"></script>
-
-</body>
-</html>
+    return array;
+}
