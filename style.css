@@ -8,828 +8,876 @@ html {
 
 body {
     margin: 0;
-
     font-family:
         -apple-system,
         BlinkMacSystemFont,
         "Segoe UI",
         sans-serif;
-
     background: #f5f6f8;
-
     color: #222;
+    line-height: 1.5;
 }
 
+button,
+input,
+select {
+    font: inherit;
+}
 
-/* ========================================
-   ヘッダー
-======================================== */
+button {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
 
 header {
-    background: white;
-
+    background: #fff;
     border-bottom: 1px solid #ddd;
-
-    padding: 16px 20px;
-
-    text-align: center;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
 }
 
 header h1 {
-    margin: 0 0 12px;
+    margin: 0;
+    font-size: 24px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
 
-    font-size: 26px;
+.header-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
 }
 
 nav {
     display: flex;
-
-    justify-content: center;
-
-    gap: 10px;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
-nav button {
-    border: none;
-
-    background: #eee;
-
-    padding: 10px 20px;
-
-    min-height: 42px;
-
+nav button,
+.header-auth-button {
+    border: 1px solid #ddd;
+    background: #fff;
+    padding: 9px 14px;
+    min-height: 40px;
     border-radius: 8px;
-
     cursor: pointer;
-
     font-size: 14px;
-
-    -webkit-tap-highlight-color: transparent;
 }
 
+nav button:hover,
+.header-auth-button:hover,
+.change-sheet-button:hover,
+.secondary-button:hover,
+.back-button:hover,
+#resetButton:hover {
+    background: #f1f1f1;
+}
 
-/* ========================================
-   メイン
-======================================== */
+.header-auth-button {
+    white-space: nowrap;
+}
 
 main {
+    width: 100%;
     max-width: 700px;
-
     margin: 0 auto;
-
-    padding: 30px 20px;
+    padding: 28px 20px 40px;
 }
 
-
-/* ========================================
-   ジャンル選択
-======================================== */
-
-.sheet-box {
-    background: white;
-
+.sheet-box,
+.settings-box,
+.auth-box {
+    background: #fff;
     border-radius: 12px;
-
-    padding: 30px;
-
-    box-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.06);
+    padding: 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
 }
 
 .sheet-box h2,
-.settings-box h2 {
-    margin-top: 0;
-
-    margin-bottom: 24px;
-
+.settings-box h2,
+.auth-box h2,
+#progressPage > h2 {
+    margin: 0 0 22px;
     text-align: center;
-
     font-size: 21px;
+    line-height: 1.4;
 }
 
-#sheetList {
+
+/* =========================
+   認証
+========================= */
+
+.auth-box {
+    max-width: 480px;
+    margin: 20px auto;
+}
+
+.auth-form {
     display: flex;
-
     flex-direction: column;
-
     gap: 10px;
+}
 
-    margin-bottom: 24px;
+.auth-form label {
+    margin-top: 6px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.auth-form input {
+    width: 100%;
+    min-height: 48px;
+    padding: 11px 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: #fff;
+    outline: none;
+}
+
+.auth-form input:focus {
+    border-color: #555;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, .06);
+}
+
+
+/* ログイン画面のログインボタン */
+
+#authButton {
+    width: 100%;
+    min-height: 50px;
+    margin-top: 10px;
+    border: none;
+    border-radius: 8px;
+    background: #333;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+#authButton:hover {
+    background: #222;
+}
+
+#authButton:disabled {
+    background: #aaa;
+    cursor: not-allowed;
+}
+
+
+/* トップページのログインするボタン */
+
+#homeLoginButton {
+    width: 100%;
+    min-height: 48px;
+    padding: 11px 14px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    background: #fff;
+    color: #222;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+#homeLoginButton:hover {
+    background: #f7f7f7;
+}
+
+
+.secondary-button,
+.back-button,
+#resetButton {
+    width: 100%;
+    min-height: 48px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.back-button {
+    margin-top: 8px;
+}
+
+.auth-message {
+    min-height: 22px;
+    margin-top: 8px;
+    text-align: center;
+    color: #555;
+    white-space: pre-line;
+    font-size: 14px;
+}
+
+
+/* =========================
+   アカウント
+========================= */
+
+.account-info {
+    padding: 17px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    margin-bottom: 14px;
+}
+
+.account-label {
+    margin-bottom: 5px;
+    color: #666;
+    font-size: 13px;
+}
+
+.account-email {
+    font-size: 16px;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+.account-message {
+    min-height: 22px;
+    margin-bottom: 10px;
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+}
+
+.account-logout-button {
+    width: 100%;
+    min-height: 48px;
+    margin-top: 8px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: #fff;
+    color: #b00020;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+
+/* =========================
+   ジャンル
+========================= */
+
+#sheetList,
+#progressSheetList {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    margin-bottom: 22px;
 }
 
 .sheet-option {
     width: 100%;
-
-    min-height: 54px;
-
-    padding: 15px;
-
+    min-height: 52px;
+    padding: 13px 15px;
     border: 2px solid #ddd;
-
-    background: white;
-
+    background: #f8f8f8;
     border-radius: 8px;
-
     cursor: pointer;
-
     text-align: left;
-
     font-size: 16px;
-
-    -webkit-tap-highlight-color: transparent;
-
-    touch-action: manipulation;
 }
 
 .sheet-option:hover {
-    background: #f5f5f5;
+    background: #f0f0f0;
 }
 
 .sheet-option.selected {
     border-color: #333;
-
     background: #eee;
-
-    font-weight: bold;
+    font-weight: 600;
 }
 
-#startButton {
+.loading {
+    margin: 10px 0;
+    text-align: center;
+    color: #777;
+}
+
+#startButton,
+#beginStudyButton {
     width: 100%;
-
     min-height: 52px;
-
-    padding: 14px;
-
-    border: none;
-
+    padding: 13px;
+    border: 0;
     border-radius: 8px;
-
     background: #333;
-
-    color: white;
-
+    color: #fff;
     font-size: 16px;
-
     cursor: pointer;
+}
+
+#startButton:hover,
+#beginStudyButton:hover {
+    background: #222;
 }
 
 #startButton:disabled,
 #beginStudyButton:disabled {
     background: #bbb;
-
     cursor: not-allowed;
 }
 
 
-/* ========================================
+/* =========================
    学習設定
-======================================== */
-
-.settings-box {
-    background: white;
-
-    border-radius: 12px;
-
-    padding: 30px;
-
-    margin-bottom: 20px;
-
-    box-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.06);
-}
+========================= */
 
 .setting-section {
-    margin-bottom: 28px;
+    margin-bottom: 26px;
 }
 
 .setting-section h3 {
-    margin: 0 0 12px;
-
+    margin: 0 0 11px;
     font-size: 16px;
 }
 
 .setting-options {
     display: flex;
-
     flex-direction: column;
-
-    gap: 10px;
+    gap: 8px;
 }
 
 .setting-options.horizontal {
     display: grid;
-
-    grid-template-columns:
-        repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
 }
 
 .setting-option {
-    min-height: 54px;
-
-    padding: 12px 14px;
-
+    min-height: 52px;
+    padding: 11px 13px;
     border: 2px solid #ddd;
-
     border-radius: 8px;
-
-    background: white;
-
+    background: #fff;
     cursor: pointer;
-
     text-align: left;
+}
 
-    font-size: 15px;
-
-    touch-action: manipulation;
+.setting-option:hover {
+    background: #f7f7f7;
 }
 
 .setting-option.selected {
     border-color: #333;
-
     background: #eee;
 }
 
 .setting-option strong {
     display: block;
-
-    font-size: 16px;
+    font-size: 15px;
+    line-height: 1.4;
 }
 
 .setting-option span {
     display: block;
-
-    margin-top: 4px;
-
+    margin-top: 3px;
     color: #666;
-
     font-size: 13px;
-
     line-height: 1.4;
 }
 
 .settings-message {
     min-height: 24px;
-
-    margin-bottom: 12px;
-
-    color: #c33;
-
-    text-align: center;
-
-    font-size: 14px;
-
+    margin-bottom: 10px;
+    color: #555;
     white-space: pre-line;
-}
-
-#beginStudyButton {
-    width: 100%;
-
-    min-height: 52px;
-
-    padding: 14px;
-
-    border: none;
-
-    border-radius: 8px;
-
-    background: #333;
-
-    color: white;
-
-    font-size: 16px;
-
-    cursor: pointer;
-}
-
-.back-button {
-    width: 100%;
-
-    min-height: 46px;
-
-    margin-top: 10px;
-
-    padding: 10px;
-
-    border: none;
-
-    border-radius: 8px;
-
-    background: #eee;
-
-    color: #333;
-
     font-size: 14px;
-
-    cursor: pointer;
 }
 
 
-/* ========================================
-   現在のシート
-======================================== */
+/* =========================
+   学習画面
+========================= */
 
 .current-sheet {
-    margin-bottom: 14px;
+    background: #fff;
+    padding: 14px 16px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .05);
+}
 
-    padding: 12px 15px;
+.current-sheet > span {
+    display: block;
+}
 
-    background: white;
-
-    border-radius: 8px;
-
-    border: 1px solid #ddd;
-
-    line-height: 1.6;
-
-    overflow: hidden;
+.study-controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
 }
 
 .change-sheet-button {
-    float: right;
-
-    border: none;
-
-    background: #eee;
-
-    padding: 7px 11px;
-
-    min-height: 34px;
-
-    border-radius: 6px;
-
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 7px;
+    background: #fff;
     cursor: pointer;
-
-    margin-left: 6px;
+    font-size: 14px;
 }
-
-
-/* ========================================
-   セッション情報
-======================================== */
 
 .session-info {
     display: flex;
-
     justify-content: space-between;
-
+    gap: 10px;
     margin-bottom: 12px;
-
     padding: 0 4px;
-
-    color: #666;
-
+    color: #555;
     font-size: 14px;
 }
 
-
-/* ========================================
-   問題
-======================================== */
-
 .question-box {
-    background: white;
-
+    background: #fff;
     border-radius: 12px;
-
-    padding: 35px 20px;
-
+    padding: 32px 18px;
+    margin-bottom: 12px;
     text-align: center;
-
-    margin-bottom: 20px;
-
-    box-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
 }
 
 #questionType {
+    margin-bottom: 16px;
     color: #777;
-
     font-size: 14px;
-
-    margin-bottom: 15px;
 }
 
 #question {
-    font-size: 32px;
-
+    font-size: 30px;
     font-weight: bold;
-
+    line-height: 1.4;
     word-break: break-word;
-
-    overflow-wrap: anywhere;
 }
 
 
-/* ========================================
+/* =========================
    選択肢
-======================================== */
+========================= */
 
 #choices {
     display: grid;
-
-    grid-template-columns:
-        repeat(2, 1fr);
-
-    gap: 12px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 9px;
 }
 
 .choice {
-    min-height: 70px;
-
-    padding: 12px;
-
+    min-height: 68px;
+    padding: 13px 15px;
     border: 2px solid #ddd;
-
-    border-radius: 10px;
-
-    background: white;
-
-    font-size: 17px;
-
+    border-radius: 8px;
+    background: #fff;
     cursor: pointer;
-
-    transition: 0.15s;
-
-    touch-action: manipulation;
-
-    overflow-wrap: anywhere;
+    font-size: 16px;
+    line-height: 1.4;
+    word-break: break-word;
+    text-align: center;
+    transition:
+        background-color .1s,
+        border-color .1s;
 }
+
+.choice:hover {
+    background: #f7f7f7;
+}
+
+
+/* 正解：薄い緑 */
 
 .choice.correct {
-    background: #d9f5df;
-
-    border-color: #45a35a;
+    border-color: #9ac9a3;
+    background: #e8f5e9;
 }
+
+
+/* 不正解：薄い赤 */
 
 .choice.wrong {
-    background: #f8dada;
+    border-color: #e0a0a0;
+    background: #fdecec;
+}
 
-    border-color: #d95353;
+.choice:disabled {
+    cursor: default;
 }
 
 
-/* ========================================
+/* =========================
    結果
-======================================== */
+========================= */
 
 #result {
-    min-height: 30px;
-
-    margin: 20px 0;
-
+    min-height: 54px;
+    margin: 12px 0;
+    padding: 10px;
     text-align: center;
-
-    font-size: 18px;
-
-    font-weight: bold;
-
-    line-height: 1.5;
-
     white-space: pre-line;
+    line-height: 1.6;
 }
-
-
-/* ========================================
-   ボタン
-======================================== */
 
 #nextButton,
 #reviewButton {
-    display: block;
-
-    margin: 0 auto 10px;
-
-    min-height: 48px;
-
-    padding: 12px 30px;
-
+    width: 100%;
+    min-height: 50px;
+    margin-top: 8px;
     border: none;
-
     border-radius: 8px;
-
     background: #333;
-
-    color: white;
-
-    font-size: 16px;
-
+    color: #fff;
     cursor: pointer;
+    font-size: 16px;
 }
 
-#reviewButton {
-    background: #555;
+#nextButton:hover,
+#reviewButton:hover {
+    background: #222;
 }
 
 
-/* ========================================
+/* =========================
    学習状況
-======================================== */
+========================= */
 
 .stats {
     display: grid;
-
-    grid-template-columns:
-        repeat(2, 1fr);
-
-    gap: 12px;
-
-    margin-bottom: 30px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 9px;
+    margin: 18px 0;
 }
 
 .stat {
-    background: white;
-
+    background: #fff;
+    padding: 17px 10px;
     border-radius: 10px;
-
-    padding: 18px;
-
     text-align: center;
-
-    border: 1px solid #ddd;
 }
 
 .stat-label {
     color: #666;
-
     font-size: 13px;
-
-    margin-bottom: 8px;
 }
 
 .stat-value {
-    font-size: 25px;
-
+    margin-top: 4px;
+    font-size: 24px;
     font-weight: bold;
 }
 
-#progressPage h2 {
-    margin-top: 0;
-
-    font-size: 21px;
-}
-
-
-/* ========================================
-   誤答率
-======================================== */
-
 .buckets {
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 10px;
-
-    margin-bottom: 30px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 9px;
+    margin-bottom: 26px;
 }
 
 .bucket {
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
-
-    background: white;
-
-    border: 1px solid #ddd;
-
-    border-radius: 8px;
-
-    padding: 14px 16px;
-
-    min-height: 50px;
+    background: #fff;
+    padding: 14px 10px;
+    border-radius: 9px;
+    text-align: center;
 }
 
-
-/* ========================================
-   単語別学習状況
-======================================== */
+.bucket strong {
+    display: block;
+    margin-top: 5px;
+    font-size: 20px;
+}
 
 .word-progress-header {
     display: flex;
-
-    justify-content: space-between;
-
     align-items: center;
-
-    gap: 12px;
-
+    justify-content: space-between;
+    gap: 10px;
     margin-bottom: 12px;
 }
 
 .word-progress-header h2 {
-    margin: 0 !important;
+    margin: 0;
+    font-size: 19px;
 }
 
 #wordSortSelect {
     min-height: 40px;
-
-    padding: 7px 10px;
-
+    max-width: 150px;
+    padding: 7px 8px;
     border: 1px solid #ccc;
-
     border-radius: 7px;
-
-    background: white;
-
-    font-size: 14px;
+    background: #fff;
 }
 
 .word-progress-list {
     display: flex;
-
     flex-direction: column;
-
     gap: 8px;
-
-    margin-bottom: 25px;
 }
 
 .word-progress-item {
-    background: white;
-
-    border: 1px solid #ddd;
-
+    background: #fff;
+    padding: 14px;
     border-radius: 9px;
-
-    padding: 13px 15px;
 }
 
 .word-progress-main {
     display: flex;
-
     justify-content: space-between;
-
-    align-items: center;
-
-    gap: 12px;
+    gap: 10px;
 }
 
 .word-progress-word {
-    font-size: 17px;
-
     font-weight: bold;
-
     word-break: break-word;
 }
 
 .word-progress-rate {
-    font-weight: bold;
-
     white-space: nowrap;
 }
 
 .word-progress-detail {
-    display: flex;
-
-    gap: 14px;
-
-    margin-top: 6px;
-
+    margin-top: 5px;
     color: #666;
-
     font-size: 13px;
-
-    flex-wrap: wrap;
 }
-
-.word-progress-unlearned {
-    color: #888;
-}
-
-
-/* ========================================
-   リセット
-======================================== */
 
 #resetButton {
-    width: 100%;
-
-    min-height: 48px;
-
-    padding: 12px;
-
-    border: 1px solid #d55;
-
-    background: white;
-
-    color: #c33;
-
-    border-radius: 8px;
-
-    cursor: pointer;
+    margin-top: 20px;
+    color: #555;
 }
 
 
-/* ========================================
+/* =========================
+   匿名利用の注意書き
+========================= */
+
+.trial-notice {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 18px 0;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #f5f5f5;
+    color: #555;
+    text-align: left;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.trial-notice strong {
+    color: #333;
+    font-size: 14px;
+}
+
+
+/* =========================
    スマートフォン
-======================================== */
+   375px前後を基準
+========================= */
 
 @media (max-width: 600px) {
 
-    main {
-        padding: 20px 12px;
-    }
-
     header {
-        padding: 14px 12px;
+        padding: 12px;
+        align-items: center;
+        gap: 10px;
     }
 
     header h1 {
-        font-size: 23px;
+        font-size: 21px;
     }
 
+    .header-right {
+        gap: 6px;
+    }
+
+    nav {
+        gap: 5px;
+    }
+
+    nav button,
+    .header-auth-button {
+        min-height: 38px;
+        padding: 7px 9px;
+        font-size: 12px;
+    }
+
+    main {
+        padding: 16px 10px 30px;
+    }
+
+    .sheet-box,
     .settings-box,
-    .sheet-box {
-        padding: 20px 16px;
+    .auth-box {
+        padding: 20px 14px;
+        border-radius: 10px;
+    }
+
+    .sheet-box h2,
+    .settings-box h2,
+    .auth-box h2 {
+        margin-bottom: 18px;
+        font-size: 19px;
+    }
+
+    #homePage .auth-box {
+        margin-top: 10px;
+    }
+
+    #homePage .auth-box > p {
+        font-size: 14px;
+    }
+
+    .trial-notice {
+        margin: 15px 0;
+        padding: 11px 12px;
+        font-size: 12px;
+    }
+
+    .trial-notice strong {
+        font-size: 13px;
     }
 
     .setting-options.horizontal {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .setting-option {
-        min-height: 56px;
-
-        padding: 11px 10px;
+        padding: 10px;
     }
 
-    .current-sheet {
-        padding: 10px 12px;
+    .setting-option strong {
+        font-size: 14px;
+    }
+
+    .setting-option span {
+        font-size: 12px;
+    }
+
+    .study-controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
     }
 
     .change-sheet-button {
-        padding: 6px 8px;
+        width: 100%;
+        padding: 8px 5px;
+        font-size: 13px;
+    }
 
-        font-size: 12px;
-
-        margin-left: 4px;
+    .question-box {
+        padding: 28px 14px;
     }
 
     #question {
-        font-size: 28px;
+        font-size: 26px;
     }
 
     #choices {
         grid-template-columns: 1fr;
-
-        gap: 10px;
+        gap: 8px;
     }
 
     .choice {
         min-height: 58px;
-
-        font-size: 16px;
+        padding: 12px;
     }
 
-    .stats {
-        gap: 8px;
+    .session-info {
+        font-size: 13px;
+    }
+
+    .stats,
+    .buckets {
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .stat {
-        padding: 14px 8px;
+        padding: 14px 7px;
     }
 
     .stat-value {
         font-size: 22px;
     }
 
-    .word-progress-header {
-        align-items: stretch;
+    .bucket {
+        padding: 13px 7px;
+        font-size: 13px;
+    }
 
+    .bucket strong {
+        font-size: 18px;
+    }
+
+    .word-progress-header {
+        align-items: flex-start;
         flex-direction: column;
     }
 
     #wordSortSelect {
         width: 100%;
+        max-width: none;
     }
 
     .word-progress-main {
-        align-items: flex-start;
-
         flex-direction: column;
-
-        gap: 5px;
+        gap: 3px;
     }
 
+    .word-progress-rate {
+        font-size: 14px;
+    }
 }
 
 
-/* ========================================
-   小型スマートフォン
-======================================== */
+/* =========================
+   とても狭い画面
+   320px前後
+========================= */
 
-@media (max-width: 380px) {
+@media (max-width: 360px) {
+
+    header {
+        align-items: flex-start;
+    }
+
+    header h1 {
+        font-size: 19px;
+    }
+
+    .header-right {
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    nav {
+        justify-content: flex-end;
+    }
+
+    nav button,
+    .header-auth-button {
+        font-size: 11px;
+        padding: 6px 7px;
+    }
 
     main {
         padding-left: 8px;
-
         padding-right: 8px;
     }
 
-    #question {
-        font-size: 25px;
+    .sheet-box,
+    .settings-box,
+    .auth-box {
+        padding-left: 12px;
+        padding-right: 12px;
     }
 
+    .setting-options.horizontal {
+        grid-template-columns: 1fr;
+    }
 }
