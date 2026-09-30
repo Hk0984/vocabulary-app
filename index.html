@@ -1,58 +1,173 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>単語学習</title>
 
-    <meta name="theme-color" content="#333333">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="単語学習">
-
-    <link rel="manifest" href="manifest.json">
-
     <link rel="stylesheet" href="style.css">
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore-compat.js"></script>
 </head>
 
 <body>
 
 <header>
-
     <h1>単語学習</h1>
 
-    <nav>
+    <div class="header-right">
 
-        <button onclick="showPage('studyPage')">
-            学習
+        <nav id="mainNav" style="display:none;">
+            <button onclick="showPage('sheetPage')">学習</button>
+            <button onclick="showPage('progressPage')">学習状況</button>
+            <button onclick="showPage('accountPage')">アカウント</button>
+        </nav>
+
+        <button
+            id="headerAuthButton"
+            class="header-auth-button"
+            onclick="handleHeaderAuthButton()"
+        >
+            ログインする
         </button>
 
-        <button onclick="showPage('progressPage')">
-            学習状況
-        </button>
-
-    </nav>
-
+    </div>
 </header>
 
 
 <main>
 
+<!-- =========================
+     トップ
+========================= -->
 
-<!-- ========================================
+<section id="homePage">
+
+    <div class="auth-box">
+
+        <h2>単語学習へようこそ</h2>
+
+        <p>
+    ログインすると、学習状況を保存して
+    次回も続きから学習できます。
+</p>
+
+<div class="trial-notice">
+    <strong>ログインせずに試す場合</strong>
+    <span>
+        学習記録は保存されません。
+        学習記録を残したい場合は、ログインしてください。
+    </span>
+</div>
+
+        <button
+            id="homeLoginButton"
+            onclick="openLoginPage()"
+        >
+            ログインする
+        </button>
+
+        <button
+            class="secondary-button"
+            onclick="startAsAnonymous()"
+        >
+            ログインせず試してみる
+        </button>
+
+        <div id="homeMessage" class="auth-message"></div>
+
+    </div>
+
+</section>
+
+
+<!-- =========================
+     ログイン
+========================= -->
+
+<section id="authPage" style="display:none;">
+
+    <div class="auth-box">
+
+        <h2 id="authTitle">ログイン</h2>
+
+        <div class="auth-form">
+
+            <label for="emailInput">
+                メールアドレス
+            </label>
+
+            <input
+                id="emailInput"
+                type="email"
+                autocomplete="email"
+                placeholder="example@example.com"
+            >
+
+            <label for="passwordInput">
+                パスワード
+            </label>
+
+            <input
+                id="passwordInput"
+                type="password"
+                autocomplete="current-password"
+                placeholder="6文字以上"
+            >
+
+            <button
+                id="authButton"
+                onclick="handleAuth()"
+            >
+                ログイン
+            </button>
+
+            <button
+                id="toggleAuthButton"
+                class="secondary-button"
+                onclick="toggleAuthMode()"
+            >
+                新規登録はこちら
+            </button>
+
+            <button
+                class="back-button"
+                onclick="showPage('homePage')"
+            >
+                戻る
+            </button>
+
+            <div
+                id="authMessage"
+                class="auth-message"
+            ></div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- =========================
      ジャンル選択
-======================================== -->
+========================= -->
 
-<section id="sheetPage">
+<section id="sheetPage" style="display:none;">
 
     <div class="sheet-box">
 
         <h2>出題するジャンルを選択</h2>
 
-        <div id="sheetList"></div>
+        <div id="sheetList">
+            <p class="loading">
+                ジャンルを読み込んでいます...
+            </p>
+        </div>
 
         <button
             id="startButton"
@@ -67,19 +182,15 @@
 </section>
 
 
-<!-- ========================================
+<!-- =========================
      学習設定
-======================================== -->
+========================= -->
 
-<section
-    id="settingsPage"
-    style="display: none;"
->
+<section id="settingsPage" style="display:none;">
 
     <div class="settings-box">
 
         <h2>学習設定</h2>
-
 
         <div class="setting-section">
 
@@ -97,7 +208,6 @@
                     <span>すべての単語から出題</span>
                 </button>
 
-
                 <button
                     class="setting-option"
                     data-setting="mode"
@@ -108,7 +218,6 @@
                     <span>誤答率41%以上の単語</span>
                 </button>
 
-
                 <button
                     class="setting-option"
                     data-setting="mode"
@@ -118,7 +227,6 @@
                     <strong>未学習単語</strong>
                     <span>まだ回答したことのない単語</span>
                 </button>
-
 
                 <button
                     class="setting-option"
@@ -142,22 +250,27 @@
             <div class="setting-options horizontal">
 
                 <button
+                    id="frontToBackButton"
                     class="setting-option selected"
                     data-setting="format"
-                    data-value="enToJa"
+                    data-value="frontToBack"
                     onclick="selectSetting(this)"
                 >
-                    <strong>英語 → 日本語</strong>
+                    <strong id="frontToBackLabel">
+                        表面 → 裏面
+                    </strong>
                 </button>
 
-
                 <button
+                    id="backToFrontButton"
                     class="setting-option"
                     data-setting="format"
-                    data-value="jaToEn"
+                    data-value="backToFront"
                     onclick="selectSetting(this)"
                 >
-                    <strong>日本語 → 英語</strong>
+                    <strong id="backToFrontLabel">
+                        裏面 → 表面
+                    </strong>
                 </button>
 
             </div>
@@ -180,7 +293,6 @@
                     <strong>10問</strong>
                 </button>
 
-
                 <button
                     class="setting-option"
                     data-setting="count"
@@ -190,7 +302,6 @@
                     <strong>20問</strong>
                 </button>
 
-
                 <button
                     class="setting-option"
                     data-setting="count"
@@ -199,7 +310,6 @@
                 >
                     <strong>50問</strong>
                 </button>
-
 
                 <button
                     class="setting-option"
@@ -220,7 +330,6 @@
             class="settings-message"
         ></div>
 
-
         <button
             id="beginStudyButton"
             onclick="beginStudy()"
@@ -228,7 +337,6 @@
         >
             学習開始
         </button>
-
 
         <button
             class="back-button"
@@ -242,14 +350,11 @@
 </section>
 
 
-<!-- ========================================
+<!-- =========================
      学習
-======================================== -->
+========================= -->
 
-<section
-    id="studyPage"
-    style="display: none;"
->
+<section id="studyPage" style="display:none;">
 
     <div class="current-sheet">
 
@@ -258,19 +363,23 @@
             <strong id="currentSheetName">-</strong>
         </span>
 
-        <button
-            onclick="showPage('settingsPage')"
-            class="change-sheet-button"
-        >
-            設定変更
-        </button>
+        <div class="study-controls">
 
-        <button
-            onclick="changeStudySheet()"
-            class="change-sheet-button"
-        >
-            ジャンル変更
-        </button>
+            <button
+                onclick="showPage('settingsPage')"
+                class="change-sheet-button"
+            >
+                設定変更
+            </button>
+
+            <button
+                onclick="changeStudySheet()"
+                class="change-sheet-button"
+            >
+                ジャンル変更
+            </button>
+
+        </div>
 
     </div>
 
@@ -279,7 +388,6 @@
         id="sessionInfo"
         class="session-info"
     >
-
         <span id="sessionProgress">
             0 / 10問
         </span>
@@ -287,14 +395,13 @@
         <span id="sessionAccuracy">
             正答率 0%
         </span>
-
     </div>
 
 
     <div class="question-box">
 
         <div id="questionType">
-            英語 → 日本語
+            表面 → 裏面
         </div>
 
         <div id="question">
@@ -306,14 +413,13 @@
 
     <div id="choices"></div>
 
-
     <div id="result"></div>
 
 
     <button
         id="nextButton"
         onclick="nextQuestion()"
-        style="display: none;"
+        style="display:none;"
     >
         次の問題
     </button>
@@ -322,7 +428,7 @@
     <button
         id="reviewButton"
         onclick="startWrongReview()"
-        style="display: none;"
+        style="display:none;"
     >
         間違えた単語を復習
     </button>
@@ -330,14 +436,11 @@
 </section>
 
 
-<!-- ========================================
+<!-- =========================
      学習状況
-======================================== -->
+========================= -->
 
-<section
-    id="progressPage"
-    style="display: none;"
->
+<section id="progressPage" style="display:none;">
 
     <div class="settings-box">
 
@@ -359,193 +462,78 @@
     <div class="stats">
 
         <div class="stat">
-
-            <div class="stat-label">
-                総問題数
-            </div>
-
-            <div
-                id="totalQuestions"
-                class="stat-value"
-            >
-                0
-            </div>
-
+            <div class="stat-label">総問題数</div>
+            <div id="totalQuestions" class="stat-value">0</div>
         </div>
 
-
         <div class="stat">
-
-            <div class="stat-label">
-                全体正答率
-            </div>
-
-            <div
-                id="overallAccuracy"
-                class="stat-value"
-            >
-                0%
-            </div>
-
+            <div class="stat-label">全体正答率</div>
+            <div id="overallAccuracy" class="stat-value">0%</div>
         </div>
 
-
         <div class="stat">
-
-            <div class="stat-label">
-                現在の連続正解
-            </div>
-
-            <div
-                id="currentStreak"
-                class="stat-value"
-            >
-                0
-            </div>
-
+            <div class="stat-label">現在の連続正解</div>
+            <div id="currentStreak" class="stat-value">0</div>
         </div>
 
-
         <div class="stat">
-
-            <div class="stat-label">
-                最高連続正解
-            </div>
-
-            <div
-                id="bestStreak"
-                class="stat-value"
-            >
-                0
-            </div>
-
+            <div class="stat-label">最高連続正解</div>
+            <div id="bestStreak" class="stat-value">0</div>
         </div>
 
     </div>
 
 
-    <h2>
-        単語の学習状況
-    </h2>
-
+    <h2>単語の学習状況</h2>
 
     <div class="buckets">
 
         <div class="bucket">
-
-            <div>
-                誤答率 0～20%
-            </div>
-
-            <strong id="bucket0">
-                0単語
-            </strong>
-
+            <div>誤答率 0～20%</div>
+            <strong id="bucket0">0単語</strong>
         </div>
 
-
         <div class="bucket">
-
-            <div>
-                誤答率 21～40%
-            </div>
-
-            <strong id="bucket1">
-                0単語
-            </strong>
-
+            <div>誤答率 21～40%</div>
+            <strong id="bucket1">0単語</strong>
         </div>
 
-
         <div class="bucket">
-
-            <div>
-                誤答率 41～60%
-            </div>
-
-            <strong id="bucket2">
-                0単語
-            </strong>
-
+            <div>誤答率 41～60%</div>
+            <strong id="bucket2">0単語</strong>
         </div>
 
-
         <div class="bucket">
-
-            <div>
-                誤答率 61～80%
-            </div>
-
-            <strong id="bucket3">
-                0単語
-            </strong>
-
+            <div>誤答率 61～80%</div>
+            <strong id="bucket3">0単語</strong>
         </div>
 
-
         <div class="bucket">
-
-            <div>
-                誤答率 81～100%
-            </div>
-
-            <strong id="bucket4">
-                0単語
-            </strong>
-
+            <div>誤答率 81～100%</div>
+            <strong id="bucket4">0単語</strong>
         </div>
 
-
         <div class="bucket">
-
-            <div>
-                未学習
-            </div>
-
-            <strong id="bucket5">
-                0単語
-            </strong>
-
+            <div>未学習</div>
+            <strong id="bucket5">0単語</strong>
         </div>
 
     </div>
 
 
-    <!-- ========================================
-         単語別学習状況
-    ======================================== -->
-
     <div class="word-progress-header">
 
-        <h2>
-            単語別の学習状況
-        </h2>
+        <h2>単語別の学習状況</h2>
 
         <select
             id="wordSortSelect"
             onchange="renderWordProgress()"
         >
-
-            <option value="weak">
-                苦手順
-            </option>
-
-            <option value="accuracy">
-                正答率順
-            </option>
-
-            <option value="questions">
-                出題回数順
-            </option>
-
-            <option value="unlearned">
-                未学習を上に
-            </option>
-
-            <option value="alphabetical">
-                英単語順
-            </option>
-
+            <option value="weak">苦手順</option>
+            <option value="accuracy">正答率順</option>
+            <option value="questions">出題回数順</option>
+            <option value="unlearned">未学習を上に</option>
+            <option value="alphabetical">表面順</option>
         </select>
 
     </div>
@@ -561,11 +549,74 @@
         id="resetButton"
         onclick="resetProgress()"
     >
-        このジャンルの学習履歴をリセット
+        このジャンルの学習状況をリセット
     </button>
 
 </section>
 
+
+<!-- =========================
+     アカウント
+========================= -->
+
+<section id="accountPage" style="display:none;">
+
+    <div class="settings-box">
+
+        <h2>アカウント</h2>
+
+        <div class="account-info">
+
+            <div class="account-label">
+                アカウント状態
+            </div>
+
+            <div
+                id="accountStatus"
+                class="account-email"
+            >
+                -
+            </div>
+
+
+            <div class="account-label">
+                メールアドレス
+            </div>
+
+            <div
+                id="accountEmail"
+                class="account-email"
+            >
+                -
+            </div>
+
+        </div>
+
+
+        <div
+            id="accountMessage"
+            class="account-message"
+        ></div>
+
+
+        <button
+            id="accountRegisterButton"
+            onclick="openRegisterPage()"
+        >
+            アカウントを登録する
+        </button>
+
+
+        <button
+            class="account-logout-button"
+            onclick="logout()"
+        >
+            ログアウト
+        </button>
+
+    </div>
+
+</section>
 
 </main>
 
@@ -573,5 +624,4 @@
 <script src="script.js"></script>
 
 </body>
-
 </html>
