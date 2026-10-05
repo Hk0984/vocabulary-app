@@ -282,6 +282,61 @@
 
 
             <div class="setting-section">
+    <h3>出題範囲</h3>
+
+    <div class="setting-options">
+        <button
+            class="setting-option selected"
+            data-setting="rangeMode"
+            data-value="all"
+            onclick="selectSetting(this)"
+        >
+            <strong>全範囲</strong>
+            <span>すべてのIDから出題</span>
+        </button>
+
+        <button
+            class="setting-option"
+            data-setting="rangeMode"
+            data-value="id"
+            onclick="selectSetting(this)"
+        >
+            <strong>ID指定</strong>
+            <span>指定したIDの範囲から出題</span>
+        </button>
+    </div>
+
+    <div
+        id="idRangeInputs"
+        class="id-range-inputs"
+        style="display: none;"
+    >
+        <label for="startIdInput">開始ID</label>
+
+        <input
+            id="startIdInput"
+            type="number"
+            inputmode="numeric"
+            placeholder="例：1200"
+            oninput="updateBeginStudyButton()"
+        >
+
+        <span>～</span>
+
+        <label for="endIdInput">終了ID</label>
+
+        <input
+            id="endIdInput"
+            type="number"
+            inputmode="numeric"
+            placeholder="例：1300"
+            oninput="updateBeginStudyButton()"
+        >
+    </div>
+</div>
+
+
+            <div class="setting-section">
 
                 <h3>問題数</h3>
 
