@@ -683,50 +683,53 @@ main {
 @media (max-width: 600px) {
 
     header {
-        padding: 12px;
+        padding: 8px 10px;
         align-items: center;
-        gap: 10px;
-    }
-
-    header h1 {
-        font-size: 21px;
-    }
-
-    .header-right {
         gap: 6px;
     }
 
+    header h1 {
+        font-size: 19px;
+    }
+
+    .header-right {
+        gap: 4px;
+    }
+
     nav {
-        gap: 5px;
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 3px;
     }
 
     nav button,
     .header-auth-button {
-        min-height: 38px;
-        padding: 7px 9px;
-        font-size: 12px;
+        min-height: 34px;
+        padding: 6px 7px;
+        font-size: 11px;
+        white-space: nowrap;
     }
 
     main {
-        padding: 16px 10px 30px;
+        padding: 10px 8px 20px;
     }
 
     .sheet-box,
     .settings-box,
     .auth-box {
-        padding: 20px 14px;
+        padding: 18px 12px;
         border-radius: 10px;
     }
 
     .sheet-box h2,
     .settings-box h2,
     .auth-box h2 {
-        margin-bottom: 18px;
+        margin-bottom: 16px;
         font-size: 19px;
     }
 
     #homePage .auth-box {
-        margin-top: 10px;
+        margin-top: 8px;
     }
 
     #homePage .auth-box > p {
@@ -734,8 +737,8 @@ main {
     }
 
     .trial-notice {
-        margin: 15px 0;
-        padding: 11px 12px;
+        margin: 12px 0;
+        padding: 10px 11px;
         font-size: 12px;
     }
 
@@ -745,10 +748,12 @@ main {
 
     .setting-options.horizontal {
         grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
     }
 
     .setting-option {
-        padding: 10px;
+        min-height: 48px;
+        padding: 8px;
     }
 
     .setting-option strong {
@@ -762,34 +767,73 @@ main {
     .study-controls {
         display: grid;
         grid-template-columns: 1fr 1fr;
+        gap: 6px;
     }
 
     .change-sheet-button {
         width: 100%;
-        padding: 8px 5px;
-        font-size: 13px;
+        min-height: 36px;
+        padding: 6px 5px;
+        font-size: 12px;
     }
 
-    .question-box {
-        padding: 28px 14px;
-    }
-
-    #question {
-        font-size: 26px;
-    }
-
-    #choices {
-        grid-template-columns: 1fr;
-        gap: 8px;
-    }
-
-    .choice {
-        min-height: 58px;
-        padding: 12px;
+    .current-sheet {
+        padding: 10px 12px;
+        margin-bottom: 8px;
     }
 
     .session-info {
+        margin-bottom: 7px;
+        font-size: 12px;
+    }
+
+    /*
+     * 問題部分
+     * 縦方向の余白を圧縮して
+     * iPhone SEでも1画面に収まりやすくする
+     */
+    .question-box {
+        padding: 14px 10px;
+        margin-bottom: 7px;
+    }
+
+    #questionType {
+        margin-bottom: 5px;
+        font-size: 11px;
+    }
+
+    #question {
+        font-size: 22px;
+        line-height: 1.2;
+    }
+
+    /*
+     * 4択を2×2に固定
+     */
+    #choices {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+    }
+
+    .choice {
+        min-height: 46px;
+        padding: 6px 5px;
         font-size: 13px;
+        line-height: 1.2;
+    }
+
+    #result {
+        min-height: 40px;
+        margin: 7px 0;
+        padding: 6px;
+        line-height: 1.4;
+    }
+
+    #nextButton,
+    #reviewButton {
+        min-height: 44px;
+        margin-top: 5px;
+        font-size: 15px;
     }
 
     .stats,
@@ -831,6 +875,61 @@ main {
 
     .word-progress-rate {
         font-size: 14px;
+    }
+}
+
+
+/* =========================
+   とても狭い画面
+   320px前後
+========================= */
+
+@media (max-width: 360px) {
+
+    header {
+        padding: 7px 8px;
+        gap: 3px;
+    }
+
+    header h1 {
+        font-size: 18px;
+    }
+
+    .header-right {
+        gap: 2px;
+    }
+
+    nav {
+        gap: 2px;
+    }
+
+    nav button,
+    .header-auth-button {
+        font-size: 10px;
+        padding: 5px 5px;
+        min-height: 32px;
+    }
+
+    main {
+        padding-left: 7px;
+        padding-right: 7px;
+    }
+
+    .sheet-box,
+    .settings-box,
+    .auth-box {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .setting-options.horizontal {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .choice {
+        font-size: 12px;
+        padding-left: 4px;
+        padding-right: 4px;
     }
 }
 
