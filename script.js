@@ -276,43 +276,58 @@ function showPage(pageId) {
 
 function updateHeader() {
 
-    const button =
+    const mainNav =
+        document.getElementById("mainNav");
+
+    const headerAuthButton =
         document.getElementById("headerAuthButton");
 
-    if (!button) {
+
+    if (!mainNav || !headerAuthButton) {
         return;
     }
 
 
+    /*
+     * 未ログイン
+     *
+     * ヘッダーには
+     * 「ログインする」だけを表示。
+     */
     if (!currentUser) {
 
-        button.textContent = "ログインする";
+        mainNav.style.display = "none";
 
-        button.onclick =
+        headerAuthButton.style.display = "block";
+
+        headerAuthButton.textContent =
+            "ログインする";
+
+        headerAuthButton.onclick =
             openLoginPage;
 
         return;
     }
 
 
-    if (currentUser.isAnonymous) {
+    /*
+     * ログイン済み
+     *
+     * 匿名アカウント・通常アカウントの
+     * どちらでも、
+     *
+     * 学習
+     * 学習状況
+     * アカウント
+     *
+     * の3つをmainNavに表示する。
+     *
+     * 右端のheaderAuthButtonは非表示にして、
+     * 「アカウント」が2つ表示されるのを防ぐ。
+     */
+    mainNav.style.display = "flex";
 
-        button.textContent = "アカウント登録";
-
-        button.onclick =
-            openRegisterPage;
-
-        return;
-    }
-
-
-    button.textContent = "アカウント";
-
-    button.onclick = () => {
-
-        showPage("accountPage");
-
-    };
+    headerAuthButton.style.display = "none";
 }
 
 
