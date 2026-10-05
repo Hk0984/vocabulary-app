@@ -1,394 +1,407 @@
+/* =========================
+   全体
+========================= */
+
 * {
     box-sizing: border-box;
 }
 
-html {
-    -webkit-text-size-adjust: 100%;
+html,
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
 }
 
 body {
-    margin: 0;
     font-family:
         -apple-system,
         BlinkMacSystemFont,
         "Segoe UI",
+        "Hiragino Kaku Gothic ProN",
+        "Hiragino Sans",
+        Meiryo,
         sans-serif;
-    background: #f5f6f8;
+
+    background: #f5f7fa;
     color: #222;
-    line-height: 1.5;
+    line-height: 1.6;
 }
 
-button,
-input,
-select {
-    font: inherit;
-}
 
-button {
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-}
+/* =========================
+   ヘッダー
+========================= */
 
 header {
-    background: #fff;
-    border-bottom: 1px solid #ddd;
-    padding: 14px 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20px;
+
+    padding: 14px 20px;
+
+    background: #ffffff;
+    border-bottom: 1px solid #ddd;
+
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 header h1 {
     margin: 0;
     font-size: 24px;
     line-height: 1.2;
-    white-space: nowrap;
 }
 
 .header-right {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
     gap: 10px;
 }
 
 nav {
     display: flex;
     align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 6px;
 }
 
 nav button,
 .header-auth-button {
-    border: 1px solid #ddd;
-    background: #fff;
-    padding: 9px 14px;
     min-height: 40px;
-    border-radius: 8px;
-    cursor: pointer;
+    padding: 8px 12px;
+
+    border: 1px solid #ccc;
+    border-radius: 7px;
+
+    background: #fff;
+    color: #333;
+
     font-size: 14px;
-}
+    cursor: pointer;
 
-nav button:hover,
-.header-auth-button:hover,
-.change-sheet-button:hover,
-.secondary-button:hover,
-.back-button:hover,
-#resetButton:hover {
-    background: #f1f1f1;
-}
-
-.header-auth-button {
     white-space: nowrap;
 }
 
-main {
-    width: 100%;
-    max-width: 700px;
-    margin: 0 auto;
-    padding: 28px 20px 40px;
-}
-
-.sheet-box,
-.settings-box,
-.auth-box {
-    background: #fff;
-    border-radius: 12px;
-    padding: 28px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
-}
-
-.sheet-box h2,
-.settings-box h2,
-.auth-box h2,
-#progressPage > h2 {
-    margin: 0 0 22px;
-    text-align: center;
-    font-size: 21px;
-    line-height: 1.4;
+nav button:hover,
+.header-auth-button:hover {
+    background: #f0f0f0;
 }
 
 
 /* =========================
-   認証
+   メイン
+========================= */
+
+main {
+    width: 100%;
+    max-width: 900px;
+
+    margin: 0 auto;
+    padding: 24px 20px 40px;
+}
+
+
+/* =========================
+   共通ボタン
+========================= */
+
+button {
+    font-family: inherit;
+    cursor: pointer;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+main button {
+    width: 100%;
+
+    min-height: 46px;
+    padding: 10px 14px;
+
+    border: none;
+    border-radius: 8px;
+
+    background: #333;
+    color: #fff;
+
+    font-size: 15px;
+    font-weight: 600;
+
+    transition:
+        background 0.15s,
+        opacity 0.15s;
+}
+
+main button:hover:not(:disabled) {
+    background: #222;
+}
+
+
+/* =========================
+   トップ・認証
 ========================= */
 
 .auth-box {
-    max-width: 480px;
-    margin: 20px auto;
+    width: 100%;
+    max-width: 520px;
+
+    margin: 30px auto;
+    padding: 32px 28px;
+
+    background: #fff;
+
+    border: 1px solid #ddd;
+    border-radius: 12px;
+
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.auth-box h2 {
+    margin-top: 0;
+    margin-bottom: 18px;
+
+    font-size: 23px;
+}
+
+.auth-box p {
+    margin: 0 0 18px;
+}
+
+.trial-notice {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    margin: 18px 0;
+    padding: 12px 14px;
+
+    background: #f5f5f5;
+    border-radius: 8px;
+
+    font-size: 13px;
+}
+
+.trial-notice strong {
+    font-size: 14px;
+}
+
+.secondary-button {
+    margin-top: 8px;
+
+    background: #fff !important;
+    color: #333 !important;
+
+    border: 1px solid #ccc !important;
+}
+
+.secondary-button:hover:not(:disabled) {
+    background: #f5f5f5 !important;
+}
+
+.back-button {
+    margin-top: 8px;
+
+    background: #fff !important;
+    color: #555 !important;
+
+    border: 1px solid #ccc !important;
 }
 
 .auth-form {
     display: flex;
     flex-direction: column;
-    gap: 10px;
 }
 
 .auth-form label {
-    margin-top: 6px;
-    font-weight: 600;
+    margin-top: 14px;
+    margin-bottom: 5px;
+
     font-size: 14px;
+    font-weight: 600;
 }
 
 .auth-form input {
     width: 100%;
-    min-height: 48px;
-    padding: 11px 12px;
+
+    min-height: 44px;
+    padding: 9px 11px;
+
     border: 1px solid #ccc;
-    border-radius: 8px;
+    border-radius: 7px;
+
     background: #fff;
-    outline: none;
+    color: #222;
+
+    font-family: inherit;
+    font-size: 15px;
 }
 
 .auth-form input:focus {
+    outline: none;
     border-color: #555;
-    box-shadow: 0 0 0 2px rgba(0, 0, 0, .06);
-}
-
-
-/* ログイン画面のログインボタン */
-
-#authButton {
-    width: 100%;
-    min-height: 50px;
-    margin-top: 10px;
-    border: none;
-    border-radius: 8px;
-    background: #333;
-    color: #fff;
-    cursor: pointer;
-    font-size: 16px;
-}
-
-#authButton:hover {
-    background: #222;
-}
-
-#authButton:disabled {
-    background: #aaa;
-    cursor: not-allowed;
-}
-
-
-/* トップページのログインするボタン */
-
-#homeLoginButton {
-    width: 100%;
-    min-height: 48px;
-    padding: 11px 14px;
-    border: 2px solid #ddd;
-    border-radius: 8px;
-    background: #fff;
-    color: #222;
-    cursor: pointer;
-    font-size: 16px;
-}
-
-#homeLoginButton:hover {
-    background: #f7f7f7;
-}
-
-
-.secondary-button,
-.back-button,
-#resetButton {
-    width: 100%;
-    min-height: 48px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    background: #fff;
-    cursor: pointer;
-}
-
-.back-button {
-    margin-top: 8px;
 }
 
 .auth-message {
-    min-height: 22px;
-    margin-top: 8px;
-    text-align: center;
-    color: #555;
-    white-space: pre-line;
+    min-height: 24px;
+
+    margin-top: 12px;
+
     font-size: 14px;
 }
 
 
 /* =========================
-   アカウント
+   ジャンル選択
 ========================= */
 
-.account-info {
-    padding: 17px;
-    background: #f5f5f5;
-    border-radius: 8px;
-    margin-bottom: 14px;
-}
-
-.account-label {
-    margin-bottom: 5px;
-    color: #666;
-    font-size: 13px;
-}
-
-.account-email {
-    font-size: 16px;
-    font-weight: 600;
-    word-break: break-word;
-}
-
-.account-message {
-    min-height: 22px;
-    margin-bottom: 10px;
-    text-align: center;
-    color: #666;
-    font-size: 14px;
-}
-
-.account-logout-button {
+.sheet-box {
     width: 100%;
-    min-height: 48px;
-    margin-top: 8px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
+    max-width: 650px;
+
+    margin: 20px auto;
+    padding: 28px;
+
     background: #fff;
-    color: #b00020;
-    cursor: pointer;
-    font-size: 16px;
+
+    border: 1px solid #ddd;
+    border-radius: 12px;
+
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
+.sheet-box h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+}
 
-/* =========================
-   ジャンル
-========================= */
-
-#sheetList,
-#progressSheetList {
+#sheetList {
     display: flex;
     flex-direction: column;
-    gap: 9px;
-    margin-bottom: 22px;
+    gap: 8px;
+
+    margin-bottom: 18px;
 }
 
-.sheet-option {
-    width: 100%;
-    min-height: 52px;
-    padding: 13px 15px;
-    border: 2px solid #ddd;
-    background: #f8f8f8;
-    border-radius: 8px;
-    cursor: pointer;
+#sheetList button {
     text-align: left;
-    font-size: 16px;
+
+    background: #fff;
+    color: #333;
+
+    border: 1px solid #ccc;
 }
 
-.sheet-option:hover {
-    background: #f0f0f0;
+#sheetList button:hover:not(:disabled) {
+    background: #f5f5f5;
 }
 
-.sheet-option.selected {
+#sheetList button.selected {
+    background: #333;
+    color: #fff;
     border-color: #333;
-    background: #eee;
-    font-weight: 600;
 }
 
 .loading {
     margin: 10px 0;
-    text-align: center;
     color: #777;
-}
-
-#startButton,
-#beginStudyButton {
-    width: 100%;
-    min-height: 52px;
-    padding: 13px;
-    border: 0;
-    border-radius: 8px;
-    background: #333;
-    color: #fff;
-    font-size: 16px;
-    cursor: pointer;
-}
-
-#startButton:hover,
-#beginStudyButton:hover {
-    background: #222;
-}
-
-#startButton:disabled,
-#beginStudyButton:disabled {
-    background: #bbb;
-    cursor: not-allowed;
 }
 
 
 /* =========================
-   学習設定
+   設定
 ========================= */
 
+.settings-box {
+    width: 100%;
+    max-width: 700px;
+
+    margin: 20px auto;
+    padding: 28px;
+
+    background: #fff;
+
+    border: 1px solid #ddd;
+    border-radius: 12px;
+
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.settings-box h2 {
+    margin-top: 0;
+    margin-bottom: 22px;
+}
+
 .setting-section {
-    margin-bottom: 26px;
+    margin-bottom: 24px;
 }
 
 .setting-section h3 {
-    margin: 0 0 11px;
+    margin: 0 0 10px;
+
     font-size: 16px;
 }
 
 .setting-options {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr;
     gap: 8px;
 }
 
 .setting-options.horizontal {
-    display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
 }
 
 .setting-option {
-    min-height: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+
+    min-height: 60px;
+
     padding: 11px 13px;
-    border: 2px solid #ddd;
+
+    background: #fff !important;
+    color: #333 !important;
+
+    border: 1px solid #ccc !important;
     border-radius: 8px;
-    background: #fff;
-    cursor: pointer;
+
     text-align: left;
 }
 
-.setting-option:hover {
-    background: #f7f7f7;
-}
-
-.setting-option.selected {
-    border-color: #333;
-    background: #eee;
-}
-
 .setting-option strong {
-    display: block;
-    font-size: 15px;
-    line-height: 1.4;
+    font-size: 14px;
 }
 
 .setting-option span {
-    display: block;
-    margin-top: 3px;
-    color: #666;
-    font-size: 13px;
-    line-height: 1.4;
+    margin-top: 2px;
+
+    color: #777;
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.setting-option.selected {
+    background: #333 !important;
+    color: #fff !important;
+
+    border-color: #333 !important;
+}
+
+.setting-option.selected span {
+    color: #ddd;
 }
 
 .settings-message {
     min-height: 24px;
+
     margin-bottom: 10px;
-    color: #555;
-    white-space: pre-line;
+
     font-size: 14px;
 }
 
@@ -398,63 +411,91 @@ main {
 ========================= */
 
 .current-sheet {
-    background: #fff;
-    padding: 14px 16px;
-    border-radius: 10px;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, .05);
-}
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
 
-.current-sheet > span {
-    display: block;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+
+    background: #fff;
+
+    border: 1px solid #ddd;
+    border-radius: 8px;
 }
 
 .study-controls {
     display: flex;
-    gap: 8px;
-    margin-top: 10px;
+    gap: 6px;
+
+    flex-shrink: 0;
 }
 
 .change-sheet-button {
-    min-height: 40px;
-    padding: 8px 12px;
-    border: 1px solid #ccc;
-    border-radius: 7px;
-    background: #fff;
-    cursor: pointer;
-    font-size: 14px;
+    width: auto !important;
+
+    min-height: 36px !important;
+
+    padding: 6px 10px !important;
+
+    background: #fff !important;
+    color: #333 !important;
+
+    border: 1px solid #ccc !important;
+
+    font-size: 13px !important;
+}
+
+.change-sheet-button:hover {
+    background: #f5f5f5 !important;
 }
 
 .session-info {
     display: flex;
     justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 12px;
-    padding: 0 4px;
-    color: #555;
+
+    margin-bottom: 10px;
+
     font-size: 14px;
+    color: #555;
 }
 
+
+/* =========================
+   問題
+========================= */
+
 .question-box {
+    width: 100%;
+
+    margin-bottom: 10px;
+    padding: 24px 18px;
+
     background: #fff;
-    border-radius: 12px;
-    padding: 32px 18px;
-    margin-bottom: 12px;
+
+    border: 1px solid #ddd;
+    border-radius: 10px;
+
     text-align: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
+
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 #questionType {
-    margin-bottom: 16px;
+    margin-bottom: 8px;
+
     color: #777;
-    font-size: 14px;
+
+    font-size: 13px;
 }
 
 #question {
     font-size: 30px;
-    font-weight: bold;
-    line-height: 1.4;
-    word-break: break-word;
+    font-weight: 700;
+    line-height: 1.3;
+
+    overflow-wrap: anywhere;
 }
 
 
@@ -464,80 +505,97 @@ main {
 
 #choices {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
     gap: 9px;
+
+    width: 100%;
 }
 
 .choice {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
     min-height: 68px;
+
     padding: 13px 15px;
-    border: 2px solid #ddd;
-    border-radius: 8px;
+
     background: #fff;
-    cursor: pointer;
+    color: #333;
+
+    border: 1px solid #ccc;
+    border-radius: 8px;
+
     font-size: 16px;
     line-height: 1.4;
-    word-break: break-word;
+
     text-align: center;
+
+    overflow-wrap: anywhere;
+    word-break: break-word;
+
     transition:
-        background-color .1s,
-        border-color .1s;
+        background 0.15s,
+        border-color 0.15s;
 }
 
-.choice:hover {
-    background: #f7f7f7;
+.choice:hover:not(:disabled) {
+    background: #f5f5f5;
 }
-
-
-/* 正解：薄い緑 */
 
 .choice.correct {
-    border-color: #9ac9a3;
     background: #e8f5e9;
+    border-color: #4caf50;
 }
 
-
-/* 不正解：薄い赤 */
-
-.choice.wrong {
-    border-color: #e0a0a0;
-    background: #fdecec;
+.choice.incorrect {
+    background: #ffebee;
+    border-color: #f44336;
 }
 
 .choice:disabled {
+    opacity: 1;
     cursor: default;
 }
 
 
 /* =========================
-   結果
+   結果表示
 ========================= */
 
 #result {
-    min-height: 54px;
-    margin: 12px 0;
-    padding: 10px;
+    min-height: 50px;
+
+    margin: 10px 0;
+    padding: 8px;
+
     text-align: center;
-    white-space: pre-line;
-    line-height: 1.6;
+
+    font-size: 15px;
+    line-height: 1.5;
 }
+
+
+/* =========================
+   次の問題・復習
+========================= */
 
 #nextButton,
 #reviewButton {
-    width: 100%;
-    min-height: 50px;
-    margin-top: 8px;
-    border: none;
-    border-radius: 8px;
-    background: #333;
-    color: #fff;
-    cursor: pointer;
-    font-size: 16px;
+    margin-top: 6px;
 }
 
-#nextButton:hover,
+#reviewButton {
+    background: #fff !important;
+    color: #333 !important;
+
+    border: 1px solid #ccc !important;
+}
+
 #reviewButton:hover {
-    background: #222;
+    background: #f5f5f5 !important;
 }
 
 
@@ -547,140 +605,214 @@ main {
 
 .stats {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 9px;
-    margin: 18px 0;
+
+    grid-template-columns: repeat(4, 1fr);
+
+    gap: 10px;
+
+    margin: 15px 0 25px;
 }
 
 .stat {
+    padding: 14px 10px;
+
     background: #fff;
-    padding: 17px 10px;
-    border-radius: 10px;
+
+    border: 1px solid #ddd;
+    border-radius: 8px;
+
     text-align: center;
 }
 
 .stat-label {
-    color: #666;
-    font-size: 13px;
+    color: #777;
+    font-size: 12px;
 }
 
 .stat-value {
     margin-top: 4px;
-    font-size: 24px;
-    font-weight: bold;
+
+    font-size: 22px;
+    font-weight: 700;
 }
 
 .buckets {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 9px;
-    margin-bottom: 26px;
+
+    grid-template-columns: repeat(3, 1fr);
+
+    gap: 10px;
+
+    margin-bottom: 28px;
 }
 
 .bucket {
-    background: #fff;
     padding: 14px 10px;
-    border-radius: 9px;
+
+    background: #fff;
+
+    border: 1px solid #ddd;
+    border-radius: 8px;
+
     text-align: center;
+
+    font-size: 13px;
 }
 
 .bucket strong {
     display: block;
+
     margin-top: 5px;
-    font-size: 20px;
+
+    font-size: 18px;
 }
+
+
+/* =========================
+   単語別学習状況
+========================= */
 
 .word-progress-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+
     gap: 10px;
-    margin-bottom: 12px;
+
+    margin-bottom: 10px;
 }
 
 .word-progress-header h2 {
     margin: 0;
-    font-size: 19px;
+
+    font-size: 20px;
 }
 
 #wordSortSelect {
-    min-height: 40px;
-    max-width: 150px;
-    padding: 7px 8px;
+    min-height: 38px;
+
+    padding: 6px 8px;
+
     border: 1px solid #ccc;
-    border-radius: 7px;
+    border-radius: 6px;
+
     background: #fff;
+
+    font-family: inherit;
+    font-size: 13px;
 }
 
 .word-progress-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+
+    gap: 6px;
+
+    margin-bottom: 20px;
 }
 
 .word-progress-item {
-    background: #fff;
-    padding: 14px;
-    border-radius: 9px;
-}
-
-.word-progress-main {
     display: flex;
+    align-items: center;
     justify-content: space-between;
+
     gap: 10px;
+
+    padding: 11px 12px;
+
+    background: #fff;
+
+    border: 1px solid #ddd;
+    border-radius: 7px;
 }
 
-.word-progress-word {
-    font-weight: bold;
-    word-break: break-word;
+.word-progress-item .word {
+    min-width: 0;
+
+    font-weight: 600;
+
+    overflow-wrap: anywhere;
 }
 
-.word-progress-rate {
-    white-space: nowrap;
-}
+.word-progress-item .progress {
+    flex-shrink: 0;
 
-.word-progress-detail {
-    margin-top: 5px;
     color: #666;
-    font-size: 13px;
-}
 
-#resetButton {
-    margin-top: 20px;
-    color: #555;
+    font-size: 12px;
+    text-align: right;
 }
 
 
 /* =========================
-   匿名利用の注意書き
+   リセット
 ========================= */
 
-.trial-notice {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin: 18px 0;
-    padding: 12px 14px;
-    border-radius: 8px;
-    background: #f5f5f5;
-    color: #555;
-    text-align: left;
-    font-size: 13px;
-    line-height: 1.5;
+#resetButton {
+    background: #fff !important;
+    color: #555 !important;
+
+    border: 1px solid #ccc !important;
 }
 
-.trial-notice strong {
-    color: #333;
+#resetButton:hover {
+    background: #f5f5f5 !important;
+}
+
+
+/* =========================
+   アカウント
+========================= */
+
+.account-info {
+    margin-bottom: 18px;
+}
+
+.account-label {
+    margin-top: 12px;
+    margin-bottom: 3px;
+
+    color: #777;
+
+    font-size: 13px;
+}
+
+.account-email {
+    padding: 9px 10px;
+
+    background: #f7f7f7;
+
+    border-radius: 6px;
+
+    overflow-wrap: anywhere;
+}
+
+.account-message {
+    min-height: 24px;
+
+    margin-bottom: 10px;
+
     font-size: 14px;
 }
 
+.account-logout-button {
+    margin-top: 8px;
+
+    background: #fff !important;
+    color: #555 !important;
+
+    border: 1px solid #ccc !important;
+}
+
 
 /* =========================
-   スマートフォン
-   375px前後を基準
+   スマホ対応
+   iPhone SEなど375px幅を基準
 ========================= */
 
 @media (max-width: 600px) {
+
+    /* ヘッダー */
 
     header {
         padding: 8px 10px;
@@ -690,10 +822,12 @@ main {
 
     header h1 {
         font-size: 19px;
+        white-space: nowrap;
     }
 
     .header-right {
         gap: 4px;
+        min-width: 0;
     }
 
     nav {
@@ -705,14 +839,23 @@ main {
     nav button,
     .header-auth-button {
         min-height: 34px;
+
         padding: 6px 7px;
+
         font-size: 11px;
+
         white-space: nowrap;
     }
+
+
+    /* メイン */
 
     main {
         padding: 10px 8px 20px;
     }
+
+
+    /* 共通ボックス */
 
     .sheet-box,
     .settings-box,
@@ -721,29 +864,41 @@ main {
         border-radius: 10px;
     }
 
-    .sheet-box h2,
-    .settings-box h2,
+
+    /* トップ・認証 */
+
+    .auth-box {
+        margin-top: 10px;
+        margin-bottom: 10px;
+    }
+
     .auth-box h2 {
-        margin-bottom: 16px;
-        font-size: 19px;
+        font-size: 20px;
     }
 
-    #homePage .auth-box {
-        margin-top: 8px;
-    }
-
-    #homePage .auth-box > p {
+    .auth-box p {
         font-size: 14px;
     }
 
     .trial-notice {
-        margin: 12px 0;
         padding: 10px 11px;
         font-size: 12px;
     }
 
-    .trial-notice strong {
-        font-size: 13px;
+
+    /* 設定 */
+
+    .setting-section {
+        margin-bottom: 18px;
+    }
+
+    .setting-section h3 {
+        margin-bottom: 7px;
+        font-size: 15px;
+    }
+
+    .setting-options {
+        gap: 6px;
     }
 
     .setting-options.horizontal {
@@ -757,29 +912,39 @@ main {
     }
 
     .setting-option strong {
-        font-size: 14px;
+        font-size: 13px;
     }
 
     .setting-option span {
-        font-size: 12px;
+        font-size: 11px;
     }
+
+
+    /* 学習画面 */
 
     .study-controls {
         display: grid;
+
         grid-template-columns: 1fr 1fr;
+
         gap: 6px;
     }
 
     .change-sheet-button {
-        width: 100%;
-        min-height: 36px;
-        padding: 6px 5px;
-        font-size: 12px;
+        width: 100% !important;
+
+        min-height: 36px !important;
+
+        padding: 6px 5px !important;
+
+        font-size: 12px !important;
     }
 
     .current-sheet {
         padding: 10px 12px;
         margin-bottom: 8px;
+
+        font-size: 13px;
     }
 
     .session-info {
@@ -787,11 +952,9 @@ main {
         font-size: 12px;
     }
 
-    /*
-     * 問題部分
-     * 縦方向の余白を圧縮して
-     * iPhone SEでも1画面に収まりやすくする
-     */
+
+    /* 問題 */
+
     .question-box {
         padding: 14px 10px;
         margin-bottom: 7px;
@@ -807,81 +970,128 @@ main {
         line-height: 1.2;
     }
 
-    /*
-     * 4択を2×2に固定
-     */
+
+    /* 選択肢
+       2列 × 2行 */
+
     #choices {
-        grid-template-columns: repeat(2, 1fr);
+        display: grid;
+
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+
         gap: 6px;
     }
 
     .choice {
         min-height: 46px;
+
         padding: 6px 5px;
+
         font-size: 13px;
         line-height: 1.2;
     }
 
+
+    /* 結果 */
+
     #result {
         min-height: 40px;
+
         margin: 7px 0;
         padding: 6px;
+
+        font-size: 13px;
         line-height: 1.4;
     }
+
+
+    /* 次の問題 */
 
     #nextButton,
     #reviewButton {
         min-height: 44px;
+
         margin-top: 5px;
+
         font-size: 15px;
     }
 
-    .stats,
-    .buckets {
+
+    /* 学習状況 */
+
+    .stats {
         grid-template-columns: repeat(2, 1fr);
+
+        gap: 6px;
+
+        margin-top: 10px;
+        margin-bottom: 18px;
     }
 
     .stat {
-        padding: 14px 7px;
+        padding: 10px 6px;
+    }
+
+    .stat-label {
+        font-size: 11px;
     }
 
     .stat-value {
-        font-size: 22px;
+        font-size: 19px;
+    }
+
+    .buckets {
+        grid-template-columns: repeat(2, 1fr);
+
+        gap: 6px;
+
+        margin-bottom: 20px;
     }
 
     .bucket {
-        padding: 13px 7px;
-        font-size: 13px;
+        padding: 10px 6px;
+
+        font-size: 11px;
     }
 
     .bucket strong {
-        font-size: 18px;
+        font-size: 16px;
     }
 
+
+    /* 単語別学習状況 */
+
     .word-progress-header {
-        align-items: flex-start;
+        align-items: stretch;
         flex-direction: column;
+        gap: 7px;
+    }
+
+    .word-progress-header h2 {
+        font-size: 18px;
     }
 
     #wordSortSelect {
         width: 100%;
-        max-width: none;
     }
 
-    .word-progress-main {
-        flex-direction: column;
-        gap: 3px;
+    .word-progress-item {
+        padding: 9px 10px;
     }
 
-    .word-progress-rate {
-        font-size: 14px;
+
+    /* アカウント */
+
+    .account-email {
+        font-size: 13px;
     }
+
 }
 
 
 /* =========================
-   とても狭い画面
-   320px前後
+   さらに狭い画面
+   360px以下
 ========================= */
 
 @media (max-width: 360px) {
@@ -905,9 +1115,11 @@ main {
 
     nav button,
     .header-auth-button {
-        font-size: 10px;
-        padding: 5px 5px;
         min-height: 32px;
+
+        padding: 5px;
+
+        font-size: 10px;
     }
 
     main {
@@ -931,52 +1143,9 @@ main {
         padding-left: 4px;
         padding-right: 4px;
     }
-}
 
-
-/* =========================
-   とても狭い画面
-   320px前後
-========================= */
-
-@media (max-width: 360px) {
-
-    header {
-        align-items: flex-start;
+    #question {
+        font-size: 21px;
     }
 
-    header h1 {
-        font-size: 19px;
-    }
-
-    .header-right {
-        flex-direction: column;
-        align-items: flex-end;
-    }
-
-    nav {
-        justify-content: flex-end;
-    }
-
-    nav button,
-    .header-auth-button {
-        font-size: 11px;
-        padding: 6px 7px;
-    }
-
-    main {
-        padding-left: 8px;
-        padding-right: 8px;
-    }
-
-    .sheet-box,
-    .settings-box,
-    .auth-box {
-        padding-left: 12px;
-        padding-right: 12px;
-    }
-
-    .setting-options.horizontal {
-        grid-template-columns: 1fr;
-    }
 }
