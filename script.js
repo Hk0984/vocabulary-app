@@ -1626,64 +1626,31 @@ function showQuestion() {
     container.innerHTML = "";
 
 
-    const correctAnswer =
-        studySettings.format ===
-        "frontToBack"
-            ? currentWord.back
-            : currentWord.front;
-
-
-    const candidates =
-        studyWords.filter(
-            word =>
-                word !== currentWord
+    const choices =
+        buildAnswerChoices(
+            currentWord,
+            studyWords,
+            studySettings.format
         );
 
+    if (choices.length < 2) {
+        const result =
+            document.getElementById("result");
+        const nextButton =
+            document.getElementById("nextButton");
 
-    shuffleArray(
-        candidates
-    );
-
-
-    const choices = [
-        correctAnswer
-    ];
-
-    const used =
-        new Set([
-            correctAnswer
-        ]);
-
-
-    for (
-        const word of candidates
-    ) {
-
-        const answer =
-            studySettings.format ===
-            "frontToBack"
-                ? word.back
-                : word.front;
-
-
-        if (
-            !answer ||
-            used.has(answer)
-        ) {
-            continue;
+        if (result) {
+            result.textContent =
+                "誤答候補が不足しているため、この問題をスキップしてください。";
+            result.className = "";
         }
 
-
-        used.add(answer);
-
-        choices.push(answer);
-
-
-        if (
-            choices.length >= 4
-        ) {
-            break;
+        if (nextButton) {
+            nextButton.style.display = "";
         }
+
+        updateSessionInfo();
+        return;
     }
 
 
@@ -1719,7 +1686,6 @@ function showQuestion() {
         }
     );
 
-
     // --------------------------------------------------------
     // 結果表示
     // --------------------------------------------------------
@@ -1736,6 +1702,11 @@ function showQuestion() {
 
         result.className =
             "";
+
+        if (choices.length < 4) {
+            result.textContent =
+                `意味が重複・酷似する候補を除いたため、${choices.length}択です。`;
+        }
     }
 
 
@@ -1751,6 +1722,112 @@ function showQuestion() {
 
 
     updateSessionInfo();
+}
+
+
+function normalizeChoiceText(value) {
+
+    return String(value ?? "")
+        .normalize("NFKC")
+        .trim()
+        .toLocaleLowerCase()
+        .replace(/[\s\u3000]+/g, " ");
+}
+
+
+function choiceTextSimilarity(left, right) {
+
+    const a = [...normalizeChoiceText(left)];
+    const b = [...normalizeChoiceText(right)];
+
+    if (!a.length || !b.length) {
+        return 0;
+    }
+
+    const previous = Array.from(
+        { length: b.length + 1 },
+        (_, index) => index
+    );
+
+    for (let i = 1; i <= a.length; i++) {
+        let diagonal = previous[0];
+        previous[0] = i;
+
+        for (let j = 1; j <= b.length; j++) {
+            const above = previous[j];
+            previous[j] = Math.min(
+                previous[j] + 1,
+                previous[j - 1] + 1,
+                diagonal + (a[i - 1] === b[j - 1] ? 0 : 1)
+            );
+            diagonal = above;
+        }
+    }
+
+    return 1 - previous[b.length] / Math.max(a.length, b.length);
+}
+
+
+function buildAnswerChoices(current, words, format) {
+
+    const frontToBack = format === "frontToBack";
+    const correctAnswer = frontToBack
+        ? current.back
+        : current.front;
+    const targetQuestion = frontToBack
+        ? current.front
+        : current.back;
+    const normalizedCorrect = normalizeChoiceText(correctAnswer);
+    const normalizedQuestion = normalizeChoiceText(targetQuestion);
+
+    if (!normalizedCorrect) {
+        return [];
+    }
+
+    const candidates = [];
+    const seen = new Set([normalizedCorrect]);
+
+    for (const word of words) {
+        if (word === current) {
+            continue;
+        }
+
+        const answer = frontToBack ? word.back : word.front;
+        const normalizedAnswer = normalizeChoiceText(answer);
+        const otherSide = normalizeChoiceText(
+            frontToBack ? word.front : word.back
+        );
+
+        if (
+            !normalizedAnswer ||
+            seen.has(normalizedAnswer) ||
+            normalizedAnswer === normalizedQuestion ||
+            otherSide === normalizedCorrect ||
+            otherSide === normalizedQuestion ||
+            choiceTextSimilarity(normalizedCorrect, normalizedAnswer) >= 0.82 ||
+            choiceTextSimilarity(normalizedQuestion, otherSide) >= 0.82
+        ) {
+            continue;
+        }
+
+        seen.add(normalizedAnswer);
+        candidates.push({
+            answer,
+            score: Math.max(
+                choiceTextSimilarity(targetQuestion, frontToBack ? word.front : word.back),
+                choiceTextSimilarity(correctAnswer, answer)
+            )
+        });
+    }
+
+    // 正解と関連の強い候補を優先し、同点ならランダムに選ぶ。
+    shuffleArray(candidates);
+    candidates.sort((a, b) => b.score - a.score);
+
+    return [
+        correctAnswer,
+        ...candidates.slice(0, 3).map(candidate => candidate.answer)
+    ];
 }
 
 
