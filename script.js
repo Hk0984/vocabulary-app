@@ -47,11 +47,14 @@ let studyWords = [];
 
 let currentIndex = 0;
 let currentWord = null;
+let currentDisplayMeaning = "";
+let currentChoiceMeanings = new Map();
 
 let progress = {};
 
 let studySettings = {
     mode: "normal",
+    meaningDisplay: "normal",
     format: "frontToBack",
     count: 10,
     rangeMode: "all"
@@ -1582,8 +1585,18 @@ function showQuestion() {
     }
 
 
-    currentWord =
-        studyWords[currentIndex];
+    const nextWord = studyWords[currentIndex];
+
+    if (nextWord !== currentWord) {
+        currentWord = nextWord;
+        currentDisplayMeaning =
+            studySettings.meaningDisplay === "hard"
+                ? pickDisplayMeaning(currentWord.back)
+                : currentWord.back;
+        currentChoiceMeanings = new Map([
+            [currentWord, currentDisplayMeaning]
+        ]);
+    }
 
 
     updateSelectedSheetName();
@@ -1606,7 +1619,7 @@ function showQuestion() {
             studySettings.format ===
             "frontToBack"
                 ? currentWord.front
-                : currentWord.back;
+                : currentDisplayMeaning;
     }
 
 
@@ -1630,7 +1643,13 @@ function showQuestion() {
         buildAnswerChoices(
             currentWord,
             studyWords,
-            studySettings.format
+            studySettings.format,
+            studySettings.meaningDisplay === "hard"
+                ? currentDisplayMeaning
+                : undefined,
+            studySettings.meaningDisplay === "hard"
+                ? currentChoiceMeanings
+                : undefined
         );
 
     if (choices.length < 2) {
@@ -1725,6 +1744,82 @@ function showQuestion() {
 }
 
 
+function pickDisplayMeaning(value, random = Math.random) {
+
+    const original = String(value ?? "");
+
+    if (!hasMeaningDelimiter(original)) {
+        return original;
+    }
+
+    const meanings = splitMeaningCandidates(original);
+
+    if (meanings.length === 0) {
+        return "";
+    }
+
+    if (meanings.length === 1) {
+        return meanings[0];
+    }
+
+    const index = Math.min(
+        meanings.length - 1,
+        Math.floor(random() * meanings.length)
+    );
+
+    return meanings[index];
+}
+
+
+function hasMeaningDelimiter(value) {
+
+    const text = String(value ?? "");
+    let bracketDepth = 0;
+
+    for (const character of text) {
+        if (character === "〔") {
+            bracketDepth++;
+        } else if (character === "〕" && bracketDepth > 0) {
+            bracketDepth--;
+        } else if (character === "／" && bracketDepth === 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+function splitMeaningCandidates(value) {
+
+    const text = String(value ?? "");
+    const meanings = [];
+    let start = 0;
+    let bracketDepth = 0;
+
+    for (let index = 0; index < text.length; index++) {
+        if (text[index] === "〔") {
+            bracketDepth++;
+        } else if (text[index] === "〕" && bracketDepth > 0) {
+            bracketDepth--;
+        } else if (text[index] === "／" && bracketDepth === 0) {
+            meanings.push(text.slice(start, index).trim());
+            start = index + 1;
+        }
+    }
+
+    meanings.push(text.slice(start).trim());
+    return meanings.filter(Boolean);
+}
+
+
+function isCorrectMeaning(selectedAnswer, originalMeaning) {
+
+    return splitMeaningCandidates(originalMeaning)
+        .includes(String(selectedAnswer ?? "").trim());
+}
+
+
 function normalizeChoiceText(value) {
 
     return String(value ?? "")
@@ -1768,16 +1863,25 @@ function choiceTextSimilarity(left, right) {
 }
 
 
-function buildAnswerChoices(current, words, format) {
+function buildAnswerChoices(
+    current,
+    words,
+    format,
+    displayedCorrectMeaning,
+    displayedMeanings
+) {
 
     const frontToBack = format === "frontToBack";
-    const correctAnswer = frontToBack
+    const originalCorrectAnswer = frontToBack
         ? current.back
         : current.front;
+    const correctAnswer = frontToBack && displayedCorrectMeaning !== undefined
+        ? displayedCorrectMeaning
+        : originalCorrectAnswer;
     const targetQuestion = frontToBack
         ? current.front
         : current.back;
-    const normalizedCorrect = normalizeChoiceText(correctAnswer);
+    const normalizedCorrect = normalizeChoiceText(originalCorrectAnswer);
     const normalizedQuestion = normalizeChoiceText(targetQuestion);
 
     if (!normalizedCorrect) {
@@ -1785,14 +1889,25 @@ function buildAnswerChoices(current, words, format) {
     }
 
     const candidates = [];
-    const seen = new Set([normalizedCorrect]);
+    const seen = new Set([normalizeChoiceText(correctAnswer)]);
 
     for (const word of words) {
         if (word === current) {
             continue;
         }
 
-        const answer = frontToBack ? word.back : word.front;
+        let answer = frontToBack ? word.back : word.front;
+
+        if (frontToBack && displayedMeanings) {
+            if (!displayedMeanings.has(word)) {
+                displayedMeanings.set(
+                    word,
+                    pickDisplayMeaning(word.back)
+                );
+            }
+
+            answer = displayedMeanings.get(word);
+        }
         const normalizedAnswer = normalizeChoiceText(answer);
         const otherSide = normalizeChoiceText(
             frontToBack ? word.front : word.back
@@ -1910,8 +2025,10 @@ async function answerQuestion(
 
 
     const isCorrect =
-        selectedAnswer ===
-        correctAnswer;
+        studySettings.format === "frontToBack" &&
+        studySettings.meaningDisplay === "hard"
+            ? isCorrectMeaning(selectedAnswer, currentWord.back)
+            : selectedAnswer === correctAnswer;
 
 
     // --------------------------------------------------------
@@ -1950,10 +2067,13 @@ async function answerQuestion(
     buttons.forEach(
         button => {
 
-            if (
-                button.textContent ===
-                correctAnswer
-            ) {
+            const isDisplayedCorrectMeaning =
+                studySettings.format === "frontToBack" &&
+                studySettings.meaningDisplay === "hard"
+                    ? isCorrectMeaning(button.textContent, currentWord.back)
+                    : button.textContent === correctAnswer;
+
+            if (isDisplayedCorrectMeaning) {
 
                 button.classList.add(
                     "correct"
@@ -1977,7 +2097,10 @@ async function answerQuestion(
         if (isCorrect) {
 
             result.textContent =
-                "正解！";
+                studySettings.meaningDisplay === "hard" &&
+                splitMeaningCandidates(currentWord.back).length > 1
+                    ? `正解！ 意味：${currentWord.back}`
+                    : "正解！";
 
             result.className =
                 "correct";
