@@ -21,8 +21,8 @@
 
     <div class="header-right">
 
-        <nav id="mainNav" style="display:none;">
-            <button onclick="startHistoryQuiz()">歴史問題</button>
+        <nav id="mainNav" aria-label="メインナビゲーション" style="display:none;">
+            <button onclick="startHistoryQuiz()" aria-label="歴史問題を始める">歴史</button>
             <button onclick="showPage('sheetPage')">学習</button>
             <button onclick="showPage('progressPage')">学習状況</button>
             <button onclick="showPage('accountPage')">アカウント</button>
@@ -714,9 +714,13 @@
         <button class="change-sheet-button" onclick="showPage('homePage')">ホームへ戻る</button>
     </div>
     <div id="historyStatus" class="history-status" role="status" aria-live="polite"></div>
+    <div id="historyEndActions" class="history-actions" style="display:none;">
+        <button class="secondary-button" onclick="startHistoryQuiz()">もう一度解く</button>
+        <button class="back-button" onclick="showPage('homePage')">学習トップへ戻る</button>
+    </div>
     <div id="historyQuiz" style="display:none;">
         <p id="historyProgress" class="history-progress"></p>
-        <div id="historyQuestion" class="history-question"></div>
+        <div id="historyQuestion" class="question-box history-question"></div>
         <div id="historyChoices" class="history-choices"></div>
         <div id="historyResult" class="history-result" aria-live="polite"></div>
         <button id="historyNext" class="history-next" style="display:none;" onclick="nextHistoryQuestion()">次の問題</button>

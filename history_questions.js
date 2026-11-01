@@ -50,10 +50,12 @@
         const status = element("historyStatus");
         status.replaceChildren();
         status.textContent = message;
+        const endActions = element("historyEndActions");
+        if (endActions) endActions.style.display = "none";
         if (retry) {
             const button = document.createElement("button");
             button.type = "button";
-            button.className = "history-next";
+            button.className = "secondary-button history-action";
             button.textContent = "再読み込み";
             button.addEventListener("click", startHistoryQuiz);
             status.appendChild(document.createElement("br"));
@@ -64,6 +66,7 @@
     async function startHistoryQuiz() {
         if (typeof root.showPage === "function") root.showPage("historyPage");
         element("historyQuiz").style.display = "none";
+        element("historyEndActions").style.display = "none";
         questions = [];
         currentIndex = 0;
         const config = root.HISTORY_QUESTIONS_CONFIG || {};
@@ -127,7 +130,7 @@
         for (let number = 1; number <= 4; number += 1) {
             const button = document.createElement("button");
             button.type = "button";
-            button.className = "history-choice";
+            button.className = "choice history-choice";
             button.textContent = number + ". " + question["choice" + number];
             button.addEventListener("click", () => answerQuestion(number));
             choices.appendChild(button);
@@ -159,6 +162,7 @@
         if (currentIndex >= questions.length) {
             element("historyQuiz").style.display = "none";
             setStatus("すべての問題を解きました", false);
+            element("historyEndActions").style.display = "grid";
             return;
         }
         renderQuestion();

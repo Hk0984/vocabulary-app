@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const clientCode = fs.readFileSync(path.join(root, 'history_questions.js'), 'utf8');
+const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const styles = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
 
 function makeElement(tagName = 'div') {
     return {
@@ -45,6 +47,16 @@ function makeApp(config = {}) {
 
 const headers = ['id','source_id','question','choice1','choice2','choice3','choice4','answer','explanation'];
 const question = (id, answer = '2') => [id,'source','問題文','選択肢A','選択肢B','選択肢C','選択肢D',answer,'解説文'];
+
+test('history entry and quiz reuse the shared question and choice styles', () => {
+    assert.match(html, /aria-label="歴史問題を始める">歴史<\/button>/);
+    assert.match(html, /class="question-box history-question"/);
+    assert.match(html, /id="historyEndActions"/);
+    assert.match(clientCode, /button\.className = "choice history-choice"/);
+    assert.match(styles, /#choices,\s*\.history-choices/);
+    assert.match(styles, /\.choice\.correct/);
+    assert.match(styles, /\.choice\.incorrect/);
+});
 
 test('parser keeps valid Japanese rows and excludes malformed, invalid-answer, and duplicate rows', () => {
     const { context } = makeApp();
@@ -138,4 +150,5 @@ test('renders four choices, reveals correctness and explanation after selection,
     context.nextHistoryQuestion();
     assert.match(elements.get('historyStatus').textContent, /すべての問題を解きました/);
     assert.equal(elements.get('historyQuiz').style.display, 'none');
+    assert.equal(elements.get('historyEndActions').style.display, 'grid');
 });
