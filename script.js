@@ -1003,6 +1003,10 @@ function renderSheetList() {
 
     SHEETS.forEach(sheet => {
 
+        if (sheet.title === "history_questions") {
+            return;
+        }
+
         const button =
             document.createElement(
                 "button"

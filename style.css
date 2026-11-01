@@ -1353,3 +1353,83 @@ main button:hover:not(:disabled) {
     }
 
 }
+
+.history-page {
+    width: min(100%, 760px);
+    margin: 0 auto;
+    padding: 16px;
+}
+
+.history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.history-status,
+.history-result,
+.history-question {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.6;
+}
+
+.history-status,
+.history-progress {
+    text-align: center;
+}
+
+.history-question {
+    padding: 18px;
+    margin: 12px 0;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 1.2rem;
+}
+
+.history-choices {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.history-choice,
+.history-next {
+    min-height: 52px;
+    padding: 12px 16px;
+    border: 1px solid #ccc;
+    border-radius: 9px;
+    background: #fff;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+
+.history-choice:disabled {
+    opacity: 1;
+}
+
+.history-result {
+    margin: 14px 0;
+    padding: 12px;
+}
+
+.history-next {
+    display: block;
+    width: 100%;
+    background: #f3f6ff;
+    text-align: center;
+}
+
+@media (max-width: 600px) {
+    .history-page {
+        padding: 12px 8px;
+    }
+
+    .history-question {
+        padding: 15px 12px;
+    }
+}
