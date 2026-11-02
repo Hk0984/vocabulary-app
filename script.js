@@ -51,6 +51,10 @@ let currentDisplayMeaning = "";
 let currentChoiceMeanings = new Map();
 
 let progress = {};
+let progressLoad = { status: "idle", uid: null, request: 0 };
+let accountGeneration = 0;
+let progressRenderRequest = 0;
+let progressViewContext = null;
 
 let studySettings = {
     mode: "normal",
@@ -85,30 +89,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             firebase.auth.Auth.Persistence.LOCAL
         );
 
-        auth.onAuthStateChanged(
-            async user => {
-
-                currentUser = user;
-
-                updateHeader();
-
-                if (user) {
-
-                    showNavigation();
-
-                    await loadSheets();
-                    await loadProgress();
-
-                    showPage("sheetPage");
-
-                } else {
-
-                    hideNavigation();
-
-                    showPage("homePage");
-                }
-            }
-        );
+        auth.onAuthStateChanged(handleAuthStateChanged);
 
     } catch (error) {
 
@@ -484,6 +465,7 @@ async function handleAuth() {
             await currentUser.linkWithCredential(
                 credential
             );
+            await loadProgress();
 
             showAuthMessage(
                 "アカウント登録が完了しました。"
@@ -692,7 +674,7 @@ async function logout() {
         await auth.signOut();
 
         currentUser = null;
-        progress = {};
+        resetProgressLoad(null);
 
         showPage("homePage");
 
@@ -715,6 +697,7 @@ async function logout() {
 // ============================================================
 
 async function loadSheets() {
+    const account = captureAccountContext();
 
     const container =
         document.getElementById(
@@ -746,6 +729,7 @@ async function loadSheets() {
 
         const data =
             await response.json();
+        if (!isCurrentAccount(account)) return;
 
         SHEETS =
             (data.sheets || []).map(sheet => ({
@@ -760,6 +744,7 @@ async function loadSheets() {
 
     } catch (error) {
 
+        if (!isCurrentAccount(account)) return;
         console.error(
             "loadSheets error:",
             error
@@ -1033,6 +1018,7 @@ function renderSheetList() {
 // ============================================================
 
 async function selectSheet(sheetName) {
+    const account = captureAccountContext();
 
     selectedSheet =
         sheetName;
@@ -1043,6 +1029,7 @@ async function selectSheet(sheetName) {
             await fetchSheetData(
                 sheetName
             );
+        if (!isCurrentAccount(account)) return;
 
         studyWords =
             parseSheetData(values);
@@ -1068,6 +1055,7 @@ async function selectSheet(sheetName) {
 
     } catch (error) {
 
+        if (!isCurrentAccount(account)) return;
         console.error(
             "selectSheet error:",
             error
@@ -1317,6 +1305,13 @@ function updateFormatLabels() {
 // ============================================================
 
 function beginStudy() {
+    setText("studySaveStatus", "");
+    if (currentUser && !currentUser.isAnonymous &&
+        ["weak", "unlearned", "incorrect"].includes(studySettings.mode) &&
+        (progressLoad.status !== "ready" || progressLoad.uid !== currentUser.uid)) {
+        showProgressLoadStatus("履歴が読み込まれていないため、この学習モードは開始できません。履歴を再読み込みしてください。", true);
+        return;
+    }
 
     if (
         !studyWords ||
@@ -1684,6 +1679,8 @@ function showQuestion() {
 
     choices.forEach(
         answer => {
+            const account = captureAccountContext();
+            const displayedWord = currentWord;
 
             const button =
                 document.createElement(
@@ -1696,12 +1693,14 @@ function showQuestion() {
             button.textContent =
                 answer;
 
-            button.onclick =
-                () =>
+            button.onclick = () => {
+                if (isCurrentAccount(account) && currentWord === displayedWord) {
                     answerQuestion(
                         answer,
                         button
                     );
+                }
+            };
 
             container.appendChild(
                 button
@@ -1990,6 +1989,7 @@ async function answerQuestion(
     selectedAnswer,
     clickedButton
 ) {
+    const account = captureAccountContext();
 
     if (!currentWord) {
         return;
@@ -2149,14 +2149,16 @@ async function answerQuestion(
 
     } catch (error) {
 
+        if (!isCurrentAccount(account)) return;
         console.error(
             "recordAnswer error:",
             error
         );
+        setText("studySaveStatus", "履歴を保存できませんでした。今回の成績は画面で確認できます。未保存の回答は自動再送されません。");
     }
 
 
-    updateSessionInfo();
+    if (isCurrentAccount(account)) updateSessionInfo();
 }
 
 
@@ -2370,55 +2372,139 @@ function changeStudySheet() {
 // ============================================================
 
 async function loadProgress() {
-
-    progress = {};
-
-
-    if (!currentUser) {
-        return;
+    const user = currentUser;
+    if (!user || user.isAnonymous) {
+        if (progressLoad.uid !== (user?.uid || null) || progressLoad.status !== "disabled") resetProgressLoad(user);
+        return false;
     }
-
-
-    // 匿名ユーザーは保存しない
-    if (
-        currentUser.isAnonymous
-    ) {
-
-        return;
-    }
-
-
+    if (progressLoad.uid !== user.uid) resetProgressLoad(user);
+    const displayedSheet = progressViewContext?.sheetName;
+    clearProgressView(true);
+    const request = ++progressLoad.request;
+    progressLoad.status = "loading";
+    showProgressLoadStatus("履歴を読み込んでいます。読み込みが完了するまで履歴の保存を停止します。", false);
     try {
-
-        const snapshot =
-            await db
-                .collection("users")
-                .doc(
-                    currentUser.uid
-                )
-                .collection("progress")
-                .get();
-
-
-        snapshot.forEach(
-            doc => {
-
-                progress[
-                    doc.id
-                ] =
-                    doc.data() || {};
-            }
-        );
-
+        const snapshot = await db.collection("users").doc(user.uid)
+            .collection("progress").get({ source: "server" });
+        if (!isCurrentProgressRequest(user, request)) return false;
+        const loaded = {};
+        snapshot.forEach(doc => { loaded[doc.id] = doc.data() || {}; });
+        progress = loaded;
+        progressLoad.status = "ready";
+        showProgressLoadStatus("", false);
+        if (document.getElementById("progressPage")?.style.display === "") {
+            loadProgressSheetList();
+            if (displayedSheet) await renderProgress(displayedSheet);
+        }
+        return isCurrentProgressRequest(user, request);
     } catch (error) {
-
-        console.error(
-            "loadProgress error:",
-            error
-        );
+        if (!isCurrentProgressRequest(user, request)) return false;
+        progressLoad.status = "error";
+        showProgressLoadStatus("履歴を読み込めませんでした。既存の記録を保護するため履歴の保存を停止しています。再読み込みしてください。", true);
+        return false;
     }
 }
 
+function resetProgressLoad(user) {
+    accountGeneration += 1;
+    clearAccountViews();
+    progress = {};
+    progressLoad = {
+        status: user && !user.isAnonymous ? "idle" : "disabled",
+        uid: user?.uid || null,
+        request: progressLoad.request + 1
+    };
+    showProgressLoadStatus("", false);
+}
+
+function captureAccountContext() {
+    return { uid: currentUser?.uid || null, generation: accountGeneration };
+}
+
+async function handleAuthStateChanged(user) {
+    currentUser = user;
+    resetProgressLoad(user);
+    const account = captureAccountContext();
+    updateHeader();
+    showPage(user ? "sheetPage" : "homePage");
+    if (!user) {
+        hideNavigation();
+        return;
+    }
+    showNavigation();
+    await loadSheets();
+    if (!isCurrentAccount(account)) return;
+    await loadProgress();
+    if (!isCurrentAccount(account)) return;
+    showPage("sheetPage");
+}
+
+function isCurrentAccount(account) {
+    return account.uid === (currentUser?.uid || null) && account.generation === accountGeneration;
+}
+
+function clearProgressView(clearGenres = false) {
+    progressRenderRequest += 1;
+    progressViewContext = null;
+    if (typeof window !== "undefined") window.currentProgressWords = [];
+    if (clearGenres) setText("progressSheetList", "");
+    for (const id of ["wordProgressList", "progressSheetName", "totalQuestions",
+        "overallAccuracy", "currentStreak", "bestStreak", "bucket0", "bucket1", "bucket2", "bucket3", "bucket4", "bucket5"]) {
+        setText(id, "");
+    }
+}
+
+function clearAccountViews() {
+    clearProgressView(true);
+    studyWords = [];
+    currentIndex = 0;
+    currentWord = null;
+    currentDisplayMeaning = "";
+    currentChoiceMeanings = new Map();
+    sessionResults = [];
+    sessionCorrect = 0;
+    sessionAnswered = 0;
+    for (const id of ["choices", "question", "result", "studySaveStatus", "sessionProgress", "sessionAccuracy"]) setText(id, "");
+    for (const id of ["nextButton", "reviewButton"]) {
+        const button = document.getElementById(id);
+        if (button) button.style.display = "none";
+    }
+    if (typeof window !== "undefined" && typeof window.resetHistoryQuiz === "function") window.resetHistoryQuiz();
+}
+
+function isCurrentProgressView(view) {
+    return currentUser && isCurrentAccount(view.account) && progressLoad.request === view.loadRequest &&
+        progressRenderRequest === view.renderRequest &&
+        (currentUser.isAnonymous || (progressLoad.status === "ready" && progressLoad.uid === currentUser.uid));
+}
+
+function isCurrentProgressRequest(user, request) {
+    return currentUser?.uid === user.uid && !currentUser.isAnonymous &&
+        progressLoad.uid === user.uid && progressLoad.request === request;
+}
+
+function showProgressLoadStatus(message, retry) {
+    setText("progressLoadStatus", message);
+    const button = document.getElementById("retryProgressLoad");
+    if (button) button.hidden = !retry;
+}
+
+function requireProgressReady(user, request) {
+    if (!isCurrentProgressRequest(user, request) || progressLoad.status !== "ready") {
+        if (currentUser?.uid === user.uid && !currentUser.isAnonymous && progressLoad.status === "idle") {
+            showProgressLoadStatus("履歴が読み込まれていないため保存できません。履歴を再読み込みしてください。", true);
+        }
+        throw new Error("Progress is not ready for this account.");
+    }
+}
+
+function progressCount(value) {
+    const count = Number(value ?? 0);
+    if (!Number.isSafeInteger(count) || count < 0 || count >= Number.MAX_SAFE_INTEGER) {
+        throw new Error("Invalid progress count; refusing to overwrite it.");
+    }
+    return count;
+}
 
 // ============================================================
 // Firestore：ジャンルID
@@ -2491,7 +2577,7 @@ function getWordProgress(word, sheetName = selectedSheet) {
 
     const sheetProgress =
         progress[
-            sheetName
+            getProgressDocumentId(sheetName)
         ];
 
 
@@ -2515,139 +2601,40 @@ function getWordProgress(word, sheetName = selectedSheet) {
 // 回答をFirestoreに保存
 // ============================================================
 
-async function recordAnswer(
-    word,
-    isCorrect,
-    sheetName = selectedSheet
-) {
-
-    if (!currentUser) {
-        return;
-    }
-
-
-    // 匿名ユーザーは保存しない
-    if (
-        currentUser.isAnonymous
-    ) {
-
-        return;
-    }
-
-
-    if (!sheetName) {
-        return;
-    }
-
-
-    const sheetId =
-        getProgressDocumentId(
-            sheetName
-        );
-
-    const wordKey =
-        getWordKey(word);
-
-
-    const current =
-        getWordProgress(word, sheetName) || {
-            correct: 0,
-            wrong: 0,
-            total: 0
-        };
-
-
-    const updated = {
-
-        correct:
-            Number(
-                current.correct || 0
-            ) +
-            (
-                isCorrect
-                    ? 1
-                    : 0
-            ),
-
-        wrong:
-            Number(
-                current.wrong || 0
-            ) +
-            (
-                isCorrect
-                    ? 0
-                    : 1
-            ),
-
-        total:
-            Number(
-                current.total || 0
-            ) + 1,
-
-        front:
-            word.front,
-
-        back:
-            word.back,
-
-        id:
-            Number.isFinite(
-                word.id
-            )
-                ? word.id
-                : null,
-
-        lastAnswered:
-            firebase.firestore
-                .FieldValue
-                .serverTimestamp()
-    };
-
-
-    // --------------------------------------------------------
-    // メモリ上更新
-    // --------------------------------------------------------
-
-    if (
-        !progress[sheetName]
-    ) {
-
-        progress[sheetName] =
-            {};
-    }
-
-
-    progress[sheetName][
-        wordKey
-    ] =
-        updated;
-
-
-    // --------------------------------------------------------
-    // Firestore
-    // --------------------------------------------------------
-
-    const ref =
-        db
-            .collection("users")
-            .doc(
-                currentUser.uid
-            )
-            .collection("progress")
-            .doc(
-                sheetId
-            );
-
-
-    await ref.set(
-        {
-            [wordKey]:
-                updated
-        },
-        {
-            merge: true
+async function recordAnswer(word, isCorrect, sheetName = selectedSheet) {
+    const user = currentUser;
+    if (!user || user.isAnonymous || !sheetName) return false;
+    const request = progressLoad.request;
+    requireProgressReady(user, request);
+    const sheetId = getProgressDocumentId(sheetName);
+    const wordKey = getWordKey(word);
+    const ref = db.collection("users").doc(user.uid).collection("progress").doc(sheetId);
+    const updated = await db.runTransaction(async transaction => {
+        requireProgressReady(user, request);
+        const snapshot = await transaction.get(ref);
+        requireProgressReady(user, request);
+        const current = (snapshot.exists ? snapshot.data()?.[wordKey] : null) ?? {};
+        if (typeof current !== "object" || Array.isArray(current)) {
+            throw new Error("Invalid progress record; refusing to overwrite it.");
         }
-    );
+        const next = {
+            correct: progressCount(current.correct) + (isCorrect ? 1 : 0),
+            wrong: progressCount(current.wrong) + (isCorrect ? 0 : 1),
+            total: progressCount(current.total) + 1,
+            front: word.front,
+            back: word.back,
+            id: Number.isFinite(word.id) ? word.id : null,
+            lastAnswered: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        transaction.set(ref, { [wordKey]: next }, { merge: true });
+        return next;
+    });
+    // Never expose a failed write as saved, or copy it to another account.
+    if (isCurrentProgressRequest(user, request) && progressLoad.status === "ready") {
+        if (!progress[sheetId]) progress[sheetId] = {};
+        progress[sheetId][wordKey] = updated;
+    }
+    return true;
 }
 
 
@@ -2665,7 +2652,16 @@ function loadProgressSheetList() {
     if (!container) {
         return;
     }
+    if (!currentUser) {
+        clearProgressView(true);
+        return;
+    }
 
+    if (currentUser && !currentUser.isAnonymous &&
+        (progressLoad.status !== "ready" || progressLoad.uid !== currentUser.uid)) {
+        container.textContent = "履歴が読み込まれていません。再読み込み後に学習状況を確認してください。";
+        return;
+    }
 
     container.innerHTML = "";
 
@@ -2714,6 +2710,18 @@ function loadProgressSheetList() {
 async function renderProgress(
     sheetName
 ) {
+    if (!currentUser) {
+        clearProgressView();
+        return;
+    }
+    if (currentUser && !currentUser.isAnonymous &&
+        (progressLoad.status !== "ready" || progressLoad.uid !== currentUser.uid)) {
+        showProgressLoadStatus("履歴が読み込まれていないため学習状況を表示できません。履歴を再読み込みしてください。", true);
+        return;
+    }
+    clearProgressView();
+    const view = { account: captureAccountContext(), loadRequest: progressLoad.request,
+        renderRequest: progressRenderRequest, sheetName };
 
     try {
 
@@ -2725,6 +2733,7 @@ async function renderProgress(
             await fetchSheetData(
                 sheetName
             );
+        if (!isCurrentProgressView(view)) return;
 
         const words =
             parseSheetData(
@@ -2734,7 +2743,7 @@ async function renderProgress(
 
         const sheetProgress =
             progress[
-                sheetName
+                getProgressDocumentId(sheetName)
             ] || {};
 
 
@@ -2933,11 +2942,13 @@ async function renderProgress(
 
         window.currentProgressWords =
             wordProgressList;
+        progressViewContext = view;
 
         renderWordProgress();
 
     } catch (error) {
 
+        if (!isCurrentProgressView(view)) return;
         console.error(
             "renderProgress error:",
             error
@@ -2955,6 +2966,10 @@ async function renderProgress(
 // ============================================================
 
 function renderWordProgress() {
+    if (!progressViewContext || !isCurrentProgressView(progressViewContext)) {
+        clearProgressView();
+        return;
+    }
 
     const container =
         document.getElementById(
@@ -3219,6 +3234,8 @@ function renderWordProgress() {
 // ============================================================
 
 async function resetProgress() {
+    const account = captureAccountContext();
+    const sheetName = selectedSheet;
 
     if (!currentUser) {
         return;
@@ -3262,7 +3279,7 @@ async function resetProgress() {
 
         const sheetId =
             getProgressDocumentId(
-                selectedSheet
+                sheetName
             );
 
 
@@ -3277,16 +3294,18 @@ async function resetProgress() {
             )
             .delete();
 
+        if (!isCurrentAccount(account)) return;
 
         delete progress[
-            selectedSheet
+            getProgressDocumentId(sheetName)
         ];
 
 
         await renderProgress(
-            selectedSheet
+            sheetName
         );
 
+        if (!isCurrentAccount(account)) return;
 
         alert(
             "学習状況をリセットしました。"
@@ -3294,6 +3313,7 @@ async function resetProgress() {
 
     } catch (error) {
 
+        if (!isCurrentAccount(account)) return;
         console.error(
             "resetProgress error:",
             error

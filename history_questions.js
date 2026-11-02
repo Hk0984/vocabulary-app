@@ -69,6 +69,22 @@
 
     function element(id) { return document.getElementById(id); }
 
+    function resetHistoryQuiz() {
+        requestId += 1;
+        questions = [];
+        currentIndex = 0;
+        answered = false;
+        correctCount = 0;
+        for (const id of ["historyStatus", "historyProgress", "historyQuestion", "historyChoices", "historyResult", "historySummary", "historySaveStatus"]) {
+            const target = element(id);
+            if (target) target.textContent = "";
+        }
+        for (const id of ["historyQuiz", "historyNext", "historyEndActions"]) {
+            const target = element(id);
+            if (target) target.style.display = "none";
+        }
+    }
+
     function setStatus(message, retry) {
         const status = element("historyStatus");
         status.replaceChildren();
@@ -160,17 +176,21 @@
         const choices = element("historyChoices");
         choices.replaceChildren();
         question.choices.forEach((choice, index) => {
+            const sessionId = requestId;
+            const questionIndex = currentIndex;
             const button = document.createElement("button");
             button.type = "button";
             button.className = "choice history-choice";
             button.textContent = (index + 1) + ". " + choice.text;
-            button.addEventListener("click", () => answerQuestion(index));
+            button.addEventListener("click", () => {
+                if (sessionId === requestId && questionIndex === currentIndex) answerQuestion(index);
+            });
             choices.appendChild(button);
         });
     }
 
     function answerQuestion(selectedIndex) {
-        if (answered) return;
+        if (answered || !questions[currentIndex]) return;
         answered = true;
         const question = questions[currentIndex];
         const correct = question.choices[selectedIndex].correct;
@@ -191,7 +211,10 @@
             "問・正答率 " + Math.round(correctCount / answeredCount * 100) + "%";
         if (typeof root.recordHistoryAnswer === "function") {
             const sessionId = requestId;
-            Promise.resolve().then(() => root.recordHistoryAnswer(question, correct)).then(saved => {
+            Promise.resolve().then(() => {
+                if (sessionId !== requestId) return;
+                return root.recordHistoryAnswer(question, correct);
+            }).then(saved => {
                 if (sessionId === requestId && !saved) element("historySaveStatus").textContent = "履歴保存にはログインが必要です。";
             }).catch(() => {
                 if (sessionId === requestId) element("historySaveStatus").textContent = "履歴を保存できませんでした。今回の成績は画面で確認できます。";
@@ -216,4 +239,5 @@
 
     root.startHistoryQuiz = startHistoryQuiz;
     root.nextHistoryQuestion = nextHistoryQuestion;
+    root.resetHistoryQuiz = resetHistoryQuiz;
 })(typeof window !== "undefined" ? window : globalThis);

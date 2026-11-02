@@ -20,3 +20,4 @@ firebase-adminsdk*.json
 *-firebase-adminsdk-*.json
 *-test-output.log
 .vscode/
+/dist/

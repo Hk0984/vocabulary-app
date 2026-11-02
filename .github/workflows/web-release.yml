@@ -1,0 +1,37 @@
+{
+  "name": "Prepare web release (manual)",
+  "on": {
+    "workflow_dispatch": {
+      "inputs": {
+        "deploy": { "description": "Replace the existing production Pages site", "type": "boolean", "default": false },
+        "confirmation": { "description": "For deployment only: type REPLACE_PRODUCTION", "type": "string", "default": "" }
+      }
+    }
+  },
+  "permissions": { "contents": "read" },
+  "concurrency": { "group": "vocabulary-app-pages-release", "cancel-in-progress": false },
+  "jobs": {
+    "build": {
+      "if": "github.repository == 'Hk0984/vocabulary-app'",
+      "runs-on": "ubuntu-latest",
+      "permissions": { "contents": "read", "pages": "read" },
+      "steps": [
+        { "uses": "actions/checkout@v6", "with": { "persist-credentials": false } },
+        { "uses": "actions/setup-node@v6", "with": { "node-version": "24" } },
+        { "name": "Verify Pages source before approved deployment", "if": "github.ref == 'refs/heads/main' && inputs.deploy == true && inputs.confirmation == 'REPLACE_PRODUCTION'", "env": { "GITHUB_TOKEN": "${{ github.token }}" }, "run": "node scripts/check-pages-release.mjs" },
+        { "name": "Verify packaging and cache behavior", "run": "node --test tests/web-build.test.mjs tests/service-worker.test.mjs" },
+        { "name": "Build allowlisted web assets", "run": "node scripts/build-web.mjs" },
+        { "name": "Upload review artifact (no deployment)", "uses": "actions/upload-artifact@v4", "with": { "name": "web-review-${{ github.run_id }}-${{ github.run_attempt }}", "path": "dist/web", "if-no-files-found": "error", "retention-days": 7 } },
+        { "name": "Prepare approved production artifact", "if": "github.ref == 'refs/heads/main' && inputs.deploy == true && inputs.confirmation == 'REPLACE_PRODUCTION'", "uses": "actions/upload-pages-artifact@v4", "with": { "name": "github-pages-${{ github.run_id }}-${{ github.run_attempt }}", "path": "dist/web" } }
+      ]
+    },
+    "deploy": {
+      "if": "github.repository == 'Hk0984/vocabulary-app' && github.ref == 'refs/heads/main' && inputs.deploy == true && inputs.confirmation == 'REPLACE_PRODUCTION'",
+      "needs": "build",
+      "runs-on": "ubuntu-latest",
+      "permissions": { "pages": "write", "id-token": "write" },
+      "environment": { "name": "github-pages", "url": "${{ steps.deployment.outputs.page_url }}" },
+      "steps": [{ "name": "Replace production Pages (explicit approval required)", "id": "deployment", "uses": "actions/deploy-pages@v4", "with": { "artifact_name": "github-pages-${{ github.run_id }}-${{ github.run_attempt }}" } }]
+    }
+  }
+}

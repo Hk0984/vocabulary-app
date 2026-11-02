@@ -232,3 +232,57 @@ test('renders four choices, reveals correctness and explanation after selection,
     assert.equal(elements.get('historyQuiz').style.display, 'none');
     assert.equal(elements.get('historyEndActions').style.display, 'grid');
 });
+
+test('account reset clears history results and ignores the old in-flight sheet response', async () => {
+    const {context,elements}=makeApp({spreadsheetId:'test',sheetName:'history_questions',apiKey:'test'});
+    let release;
+    context.fetch=()=>new Promise(resolve=>{release=resolve;});
+    const old=context.startHistoryQuiz();
+    context.resetHistoryQuiz();
+    context.fetch=async()=>({ok:true,json:async()=>({values:[headers,[...question('new').slice(0,2),'B question',...question('new').slice(3)]]})});
+    await context.startHistoryQuiz();
+    release({ok:true,json:async()=>({values:[headers,question('old')]})});
+    await old;
+    assert.equal(elements.get('historyQuestion').textContent,'B question');
+    context.resetHistoryQuiz();
+    for(const id of ['historySummary','historyResult','historyProgress','historyChoices']) {
+        assert.equal(elements.get(id).textContent,'');
+        assert.equal(elements.get(id).children.length,0);
+    }
+    assert.equal(elements.get('historyQuiz').style.display,'none');
+});
+
+test('old history buttons and deferred answer saves cannot affect the next account session', async () => {
+    const {context,elements}=makeApp({spreadsheetId:'test',sheetName:'history_questions',apiKey:'test'});
+    context.fetch=async()=>({ok:true,json:async()=>({values:[headers,question('one')]})});
+    let saves=0;
+    context.recordHistoryAnswer=async()=>{saves++;return true;};
+    await context.startHistoryQuiz();
+    const oldButton=elements.get('historyChoices').children[1];
+    oldButton.listeners.click();
+    context.resetHistoryQuiz(); // Switch before the deferred persistence callback runs.
+    await context.startHistoryQuiz();
+    oldButton.listeners.click();
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(saves,0);
+    assert.equal(elements.get('historyResult').textContent,'');
+    elements.get('historyChoices').children[1].listeners.click();
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(saves,1);
+});
+
+test('late history save failures do not display on a new account session', async () => {
+    const {context,elements}=makeApp({spreadsheetId:'test',sheetName:'history_questions',apiKey:'test'});
+    context.fetch=async()=>({ok:true,json:async()=>({values:[headers,question('one')]})});
+    let rejectOld;
+    context.recordHistoryAnswer=()=>new Promise((resolve,reject)=>{rejectOld=reject;});
+    await context.startHistoryQuiz();
+    elements.get('historyChoices').children[1].listeners.click();
+    await new Promise(resolve=>setImmediate(resolve));
+    context.resetHistoryQuiz();
+    await context.startHistoryQuiz();
+    rejectOld(new Error('old account save failure'));
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(elements.get('historySaveStatus').textContent,'');
+    assert.equal(elements.get('historySummary').textContent,'');
+});

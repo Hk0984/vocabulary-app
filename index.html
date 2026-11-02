@@ -7,6 +7,8 @@
     <title>単語学習</title>
 
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
 
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-app-compat.js"></script>
@@ -41,6 +43,9 @@
 
 
 <main>
+    <p id="appUpdateStatus" role="status" aria-live="polite"></p>
+    <p id="progressLoadStatus" role="status" aria-live="polite"></p>
+    <button id="retryProgressLoad" type="button" class="secondary-button" hidden onclick="loadProgress()">履歴を再読み込み</button>
 
     <!-- =========================
          トップ
@@ -504,6 +509,7 @@
         <div id="choices"></div>
 
         <div id="result"></div>
+        <p id="studySaveStatus" role="alert"></p>
 
 
         <button
@@ -744,6 +750,7 @@
 <script src="history-config.js"></script>
 <script src="history_questions.js"></script>
 <script src="script.js"></script>
+<script src="pwa.js"></script>
 
 </body>
 </html>

@@ -3,6 +3,8 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { after, before, beforeEach, test } from "node:test";
 import { readFileSync } from "node:fs";
 import { deleteApp, initializeApp } from "firebase/app";
+import firebase from "firebase/compat/app";
+import "firebase/compat/firestore";
 import {
   EmailAuthProvider,
   connectAuthEmulator,
@@ -60,6 +62,17 @@ const sampleProgress = {
     lastAnswered: new Date("2026-01-01T00:00:00.000Z")
   }
 };
+
+const clientSource = readFileSync(new URL('../script.js', import.meta.url), 'utf8');
+function progressClient(database, user = { uid: 'alice', isAnonymous: false }) {
+  // Execute the actual client functions in the SDK's realm (plain Firestore objects).
+  return new Function('testDb', 'document', 'firebase', 'testUser', clientSource + `
+    db = testDb;
+    currentUser = testUser;
+    selectedSheet = 'English';
+    return { loadProgress, recordAnswer, recordHistoryAnswer };
+  `)(database, { addEventListener() {}, getElementById() { return null; } }, firebase, user);
+}
 
 async function seedDocument(path) {
   await testEnv.withSecurityRulesDisabled(async context => {
@@ -246,4 +259,50 @@ test("an unexpected nested path below progress is denied", async () => {
       )
     )
   );
+});
+
+test('actual client transactions preserve concurrent counts, sibling records and genre separation', async () => {
+  const firstDb = testEnv.authenticatedContext('alice').firestore();
+  const secondDb = testEnv.authenticatedContext('alice').firestore();
+  const ref = firstDb.collection('users').doc('alice').collection('progress').doc('English');
+  await ref.set({ ...sampleProgress, id_99: {correct:2, wrong:0, total:2} });
+  const first = progressClient(firstDb), second = progressClient(secondDb);
+  assert.equal(await first.loadProgress(), true);
+  assert.equal(await second.loadProgress(), true);
+  const word = {id:7, front:'apple', back:'りんご'};
+  const answerRepeatedly = async (client, correct) => {
+    for (let i = 0; i < 4; i++) await client.recordAnswer(word, correct);
+  };
+  await Promise.all([answerRepeatedly(first, true), answerRepeatedly(second, false)]);
+  const saved = (await ref.get()).data();
+  assert.equal(saved.id_7.total, 9);
+  assert.equal(saved.id_7.correct, 5);
+  assert.equal(saved.id_7.wrong, 4);
+  assert.equal(saved.id_99.total, 2);
+  assert.deepEqual(Object.keys(saved.id_7).sort(), Object.keys(sampleProgress.id_7).sort());
+  await first.recordHistoryAnswer({id:'7', question:'問題', answer:'1', choice1:'正解'}, true);
+  const historyRef = firstDb.collection('users').doc('alice').collection('progress').doc('history_questions');
+  assert.equal((await historyRef.get()).data().history_7.total, 1);
+  assert.equal((await ref.get()).data().id_7.total, 9);
+});
+
+test('actual client rejects saving after failed load and creates first history only after successful load', async () => {
+  const database = testEnv.authenticatedContext('alice').firestore();
+  const ref = database.collection('users').doc('alice').collection('progress').doc('English');
+  await ref.set(sampleProgress);
+  let transactionCalls = 0;
+  const failedClient = progressClient({
+    collection() { return {doc() { return {collection() { return {async get() { throw new Error('offline'); }}; }}; }}; },
+    runTransaction() { transactionCalls++; }
+  });
+  assert.equal(await failedClient.loadProgress(), false);
+  await assert.rejects(failedClient.recordAnswer({id:7,front:'Q',back:'A'},true), /not ready/);
+  assert.equal(transactionCalls, 0);
+  assert.equal((await ref.get()).data().id_7.total, 1);
+  const fresh = progressClient(database);
+  await fresh.loadProgress();
+  await fresh.recordAnswer({id:1,front:'new',back:'新規'},true,'NewGenre');
+  const created = await database.collection('users').doc('alice').collection('progress').doc('NewGenre').get();
+  assert.equal(created.data().id_1.total, 1);
+  assert.equal((await ref.get()).data().id_7.total, 1);
 });

@@ -1,5 +1,7 @@
 # vocabulary-app
 
+既存URLを更新する公開準備・成果物の許可リスト・公開後の検証手順は [docs/WEB_RELEASE.md](docs/WEB_RELEASE.md) を参照してください。`npm run build:web` はローカル成果物だけを作成し、デプロイしません。
+
 英単語学習と、Discord Botから公開した世界史4択問題を扱う静的Webアプリです。
 
 ## ローカル確認
