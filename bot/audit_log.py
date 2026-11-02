@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 AUDIT_ACTIONS = {
-    "csv_import", "draft_register", "publish", "question_delete", "batch_delete", "operation_failure",
+    "csv_import", "draft_register", "publish", "publication_repair", "question_delete", "batch_delete", "operation_failure",
 }
 MAX_AUDIT_BYTES = 5 * 1024 * 1024
 AUDIT_RETENTION_DAYS = 90

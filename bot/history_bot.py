@@ -22,11 +22,16 @@ from sheets_write import (
     ReconciliationError, delete_with_reconciliation, register_with_reconciliation,
     update_status_with_reconciliation, validate_deletion_statuses,
 )
+from public_questions import PUBLIC_HEADERS, publish_drafts_safely
+from public_questions import repair_published_rows, revoke_public_rows
+from instance_lock import AlreadyRunningError, acquire_instance_lock, release_instance_lock
 
 load_dotenv(Path(__file__).with_name(".env"))
 
 SHEET_HEADERS = HEADERS + ["status", "batch_id", "created_at"]
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+# Serialize complete read/write workflows, including private-source updates.
+_SHEET_MUTATION_LOCK = asyncio.Lock()
 
 
 def sheets_client():
@@ -41,6 +46,49 @@ def sheet_config() -> tuple[str, str]:
         raise RuntimeError("GOOGLE_SHEETS_SPREADSHEET_ID が設定されていません。")
     title = os.environ.get("HISTORY_SHEET_NAME", "history_questions")
     return spreadsheet_id, title
+
+
+def public_sheet_config() -> tuple[str, str]:
+    spreadsheet_id = os.environ.get("PUBLIC_QUESTIONS_SPREADSHEET_ID", "").strip()
+    title = os.environ.get("PUBLIC_QUESTIONS_SHEET_NAME", "history_questions").strip()
+    if not spreadsheet_id or not title:
+        raise RuntimeError("公開専用スプレッドシートの設定が必要です。")
+    if spreadsheet_id == os.environ.get("GOOGLE_SHEETS_SPREADSHEET_ID", "").strip():
+        raise RuntimeError("公開先と管理用には別のスプレッドシートを指定してください。")
+    return spreadsheet_id, title
+
+
+def read_public_rows():
+    spreadsheet_id, title = public_sheet_config()
+    result = sheets_client().values().get(
+        spreadsheetId=spreadsheet_id, range=f"'{title}'!A:I"
+    ).execute()
+    values = result.get("values", [])
+    if not values or values[0] != PUBLIC_HEADERS:
+        raise RuntimeError("公開専用シートの1行目に所定の9列ヘッダーを設定してください。")
+    return [
+        dict(zip(PUBLIC_HEADERS, row + [""] * (len(PUBLIC_HEADERS) - len(row))))
+        for row in values[1:]
+    ]
+
+
+def append_public_rows(rows: list[dict[str, str]]) -> None:
+    spreadsheet_id, title = public_sheet_config()
+    values = [[row[key] for key in PUBLIC_HEADERS] for row in rows]
+    sheets_client().values().append(
+        spreadsheetId=spreadsheet_id, range=f"'{title}'!A:I", valueInputOption="RAW",
+        insertDataOption="INSERT_ROWS", body={"values": values},
+    ).execute()
+
+
+def clear_public_rows(row_numbers: list[int]) -> None:
+    if not row_numbers:
+        return
+    spreadsheet_id, title = public_sheet_config()
+    sheets_client().values().batchClear(
+        spreadsheetId=spreadsheet_id,
+        body={"ranges": [f"'{title}'!A{number}:I{number}" for number in row_numbers]},
+    ).execute()
 
 
 def read_rows():
@@ -86,6 +134,20 @@ def update_status(row_numbers: list[int], status: str) -> None:
 def allowed_user(interaction: discord.Interaction) -> bool:
     admins = {value.strip() for value in os.environ.get("ADMIN_USER_IDS", "").split(",") if value.strip()}
     return str(interaction.user.id) in admins
+
+
+async def defer_interaction(interaction: discord.Interaction) -> bool:
+    """Acknowledge promptly; stop safely if Discord says the interaction expired."""
+    if interaction.response.is_done():
+        return True
+    try:
+        await interaction.response.defer(ephemeral=True)
+        return True
+    except discord.NotFound:
+        logging.getLogger("history_bot.interactions").warning(
+            "Interaction expired before defer; command processing was skipped."
+        )
+        return False
 
 
 def audit_path() -> Path:
@@ -146,12 +208,13 @@ async def send_pages(interaction: discord.Interaction, text: str, limit: int = 1
 
 
 async def report_operation_error(interaction: discord.Interaction) -> None:
-    await interaction.followup.send(with_audit_warning("?????????????????????????", take_audit_warning(interaction)), ephemeral=True)
+    message = "処理に失敗しました。Botのログを確認してください。"
+    await interaction.followup.send(with_audit_warning(message, take_audit_warning(interaction)), ephemeral=True)
 
 
 async def report_reconciliation_error(interaction: discord.Interaction, batch_id: str | None = None) -> None:
-    target = f" batch_id: `{batch_id}`" if batch_id else ""
-    message = f"Sheets???????????????????{target}??????????????/list ????????????????"
+    target = f"対象batch_id: `{batch_id}`。" if batch_id else ""
+    message = f"スプレッドシートの状態を確認できず、安全のため処理を中止しました。{target}/list と対象シートを確認してください。"
     await interaction.followup.send(with_audit_warning(message, take_audit_warning(interaction)), ephemeral=True)
 
 
@@ -176,49 +239,52 @@ bot = HistoryBot()
 @bot.tree.command(name="import", description="CSVの問題を検証して下書き登録します")
 @app_commands.describe(file="仕様に沿ったUTF-8 CSV")
 async def import_csv(interaction: discord.Interaction, file: discord.Attachment):
-    if not allowed_user(interaction):
-        await interaction.response.send_message("この操作を行う権限がありません。", ephemeral=True)
-        await audit(interaction, "csv_import", False)
-        await audit(interaction, "operation_failure", False)
+    if not await defer_interaction(interaction):
         return
-    await interaction.response.defer(ephemeral=True)
-    rows = []
-    batch_id = None
-    try:
-        if not file.filename.lower().endswith(".csv") or file.size > 1_000_000:
-            raise CsvValidationError("CSVファイル（1MB以下）を添付してください。")
-        csv_bytes = await file.read()
-        rows = await asyncio.to_thread(parse_csv, csv_bytes)
-        question_ids = [row["id"] for row in rows]
-        batch_id = uuid.uuid4().hex[:12]
-        await audit(interaction, "csv_import", True, batch_id, question_ids)
-        await asyncio.to_thread(append_batch, rows, batch_id)
-        await audit(interaction, "draft_register", True, batch_id, question_ids)
-        await interaction.followup.send(f"{len(rows)}問をdraft登録しました。batch_id: `{batch_id}`", ephemeral=True)
-    except ReconciliationError:
-        question_ids = [row["id"] for row in rows]
-        await audit_failure(interaction, "draft_register", batch_id, question_ids)
-        await report_reconciliation_error(interaction, batch_id or "unknown")
-    except (CsvValidationError, RuntimeError) as exc:
-        question_ids = [row["id"] for row in rows]
-        if rows:
+    async with _SHEET_MUTATION_LOCK:
+        if not allowed_user(interaction):
+            await interaction.followup.send("この操作を行う権限がありません。", ephemeral=True)
+            await audit(interaction, "csv_import", False)
+            await audit(interaction, "operation_failure", False)
+            return
+        rows = []
+        batch_id = None
+        try:
+            if not file.filename.lower().endswith(".csv") or file.size > 1_000_000:
+                raise CsvValidationError("CSVファイル（1MB以下）を添付してください。")
+            csv_bytes = await file.read()
+            rows = await asyncio.to_thread(parse_csv, csv_bytes)
+            question_ids = [row["id"] for row in rows]
+            batch_id = uuid.uuid4().hex[:12]
+            await audit(interaction, "csv_import", True, batch_id, question_ids)
+            await asyncio.to_thread(append_batch, rows, batch_id)
+            await audit(interaction, "draft_register", True, batch_id, question_ids)
+            await interaction.followup.send(f"{len(rows)}問をdraft登録しました。batch_id: `{batch_id}`", ephemeral=True)
+        except ReconciliationError:
+            question_ids = [row["id"] for row in rows]
             await audit_failure(interaction, "draft_register", batch_id, question_ids)
-        else:
-            await audit_failure(interaction, "csv_import")
-        await interaction.followup.send(f"登録を中止しました: {exc}", ephemeral=True)
-    except Exception:
-        question_ids = [row["id"] for row in rows]
-        await audit_failure(interaction, "draft_register" if rows else "csv_import", batch_id, question_ids)
-        await report_operation_error(interaction)
+            await report_reconciliation_error(interaction, batch_id or "unknown")
+        except (CsvValidationError, RuntimeError) as exc:
+            question_ids = [row["id"] for row in rows]
+            if rows:
+                await audit_failure(interaction, "draft_register", batch_id, question_ids)
+            else:
+                await audit_failure(interaction, "csv_import")
+            await interaction.followup.send(f"登録を中止しました: {exc}", ephemeral=True)
+        except Exception:
+            question_ids = [row["id"] for row in rows]
+            await audit_failure(interaction, "draft_register" if rows else "csv_import", batch_id, question_ids)
+            await report_operation_error(interaction)
 
 
 @bot.tree.command(name="list", description="登録バッチと状態を一覧表示します")
 async def list_batches(interaction: discord.Interaction):
+    if not await defer_interaction(interaction):
+        return
     if not allowed_user(interaction):
-        await interaction.response.send_message("権限がありません。", ephemeral=True)
+        await interaction.followup.send("権限がありません。", ephemeral=True)
         await audit(interaction, "operation_failure", False)
         return
-    await interaction.response.defer(ephemeral=True)
     try:
         rows = await asyncio.to_thread(read_rows)
         batches: dict[str, dict[str, int]] = {}
@@ -235,11 +301,12 @@ async def list_batches(interaction: discord.Interaction):
 @bot.tree.command(name="check", description="指定バッチの問題内容を表示します")
 @app_commands.describe(batch_id="/list に表示されたバッチID")
 async def check_batch(interaction: discord.Interaction, batch_id: str):
+    if not await defer_interaction(interaction):
+        return
     if not allowed_user(interaction):
-        await interaction.response.send_message("権限がありません。", ephemeral=True)
+        await interaction.followup.send("権限がありません。", ephemeral=True)
         await audit(interaction, "operation_failure", False, batch_id)
         return
-    await interaction.response.defer(ephemeral=True)
     try:
         rows = [row for row in await asyncio.to_thread(read_rows) if row["batch_id"] == batch_id]
         if not rows:
@@ -258,89 +325,139 @@ async def check_batch(interaction: discord.Interaction, batch_id: str):
 @bot.tree.command(name="publish", description="draftのバッチを公開します")
 @app_commands.describe(batch_id="公開するバッチID")
 async def publish_batch(interaction: discord.Interaction, batch_id: str):
-    if not allowed_user(interaction):
-        await interaction.response.send_message("権限がありません。", ephemeral=True)
-        await audit(interaction, "operation_failure", False, batch_id)
+    if not await defer_interaction(interaction):
         return
-    await interaction.response.defer(ephemeral=True)
-    question_ids = []
-    try:
-        all_rows = await asyncio.to_thread(read_rows)
-        selected = [(index + 2, row) for index, row in enumerate(all_rows) if row["batch_id"] == batch_id]
-        question_ids = [row["id"] for _, row in selected]
-        targets = [number for number, row in selected if row["status"] == "draft"]
-        if not targets:
-            await audit_failure(interaction, "publish", batch_id, question_ids)
-            await send_pages(interaction, "公開対象のdraftがありません。")
+    async with _SHEET_MUTATION_LOCK:
+        if not allowed_user(interaction):
+            await interaction.followup.send("権限がありません。", ephemeral=True)
+            await audit(interaction, "operation_failure", False, batch_id)
             return
-        draft_rows = [row for _, row in selected if row["status"] == "draft"]
-        await asyncio.to_thread(
-            update_status_with_reconciliation,
-            [row["id"] for row in draft_rows], targets, batch_id, "published", "draft",
-            read_rows, lambda row_numbers: update_status(row_numbers, "published"),
-        )
-        await audit(interaction, "publish", True, batch_id, [row["id"] for _, row in selected if row["status"] == "draft"])
-        await send_pages(interaction, f"{len(targets)}問を公開しました。")
-    except ReconciliationError:
-        await audit_failure(interaction, "publish", batch_id, question_ids)
-        await report_reconciliation_error(interaction, batch_id)
-    except Exception:
-        await audit_failure(interaction, "publish", batch_id, question_ids)
-        await report_operation_error(interaction)
+        question_ids = []
+        try:
+            all_rows = await asyncio.to_thread(read_rows)
+            selected = [(index + 2, row) for index, row in enumerate(all_rows) if row["batch_id"] == batch_id]
+            question_ids = [row["id"] for _, row in selected]
+            targets = [number for number, row in selected if row["status"] == "draft"]
+            if not targets:
+                await audit_failure(interaction, "publish", batch_id, question_ids)
+                await send_pages(interaction, "公開対象のdraftがありません。")
+                return
+            draft_rows = [row for _, row in selected if row["status"] == "draft"]
+            await asyncio.to_thread(
+                publish_drafts_safely,
+                draft_rows,
+                read_public_rows,
+                append_public_rows,
+                lambda: update_status_with_reconciliation(
+                    [row["id"] for row in draft_rows], targets, batch_id, "published", "draft",
+                    read_rows, lambda row_numbers: update_status(row_numbers, "published"),
+                ),
+            )
+            await audit(interaction, "publish", True, batch_id, [row["id"] for _, row in selected if row["status"] == "draft"])
+            await send_pages(interaction, f"{len(targets)}問を公開しました。")
+        except ReconciliationError:
+            await audit_failure(interaction, "publish", batch_id, question_ids)
+            await report_reconciliation_error(interaction, batch_id)
+        except Exception:
+            await audit_failure(interaction, "publish", batch_id, question_ids)
+            await report_operation_error(interaction)
+
+
+@bot.tree.command(name="repair-publish", description="published済み問題を公開先へ安全に補完します")
+@app_commands.describe(batch_id="補完するbatch_id")
+async def repair_publish_batch(interaction: discord.Interaction, batch_id: str):
+    if not await defer_interaction(interaction):
+        return
+    async with _SHEET_MUTATION_LOCK:
+        if not allowed_user(interaction):
+            await interaction.followup.send("権限がありません。", ephemeral=True)
+            await audit(interaction, "operation_failure", False, batch_id)
+            return
+        question_ids: list[str] = []
+        try:
+            all_rows = await asyncio.to_thread(read_rows)
+            published_rows = [
+                row for row in all_rows
+                if row["batch_id"] == batch_id and row["status"] == "published"
+            ]
+            question_ids = [row["id"] for row in published_rows]
+            if not published_rows:
+                await audit_failure(interaction, "publication_repair", batch_id)
+                await send_pages(interaction, "指定batchに補完対象のpublished問題がありません。")
+                return
+            count = await asyncio.to_thread(
+                repair_published_rows, published_rows, read_public_rows, append_public_rows
+            )
+            await audit(interaction, "publication_repair", True, batch_id, question_ids)
+            await send_pages(interaction, f"公開先で{count}問を確認・補完しました。管理用statusは変更していません。")
+        except ReconciliationError:
+            await audit_failure(interaction, "publication_repair", batch_id, question_ids)
+            await report_reconciliation_error(interaction, batch_id)
+        except Exception:
+            logging.getLogger("history_bot").exception(
+                "Unexpected exception during /repair-publish (batch_id=%s)", batch_id
+            )
+            await audit_failure(interaction, "publication_repair", batch_id, question_ids)
+            await report_operation_error(interaction)
 
 
 @bot.tree.command(name="delete", description="問題またはバッチを削除します")
 @app_commands.describe(batch_id="削除するバッチID", question_id="削除する問題ID", confirm="公開済み問題を含む場合は確認にチェック")
 async def delete_batch(interaction: discord.Interaction, batch_id: str | None = None, question_id: str | None = None, confirm: bool = False):
-    if not allowed_user(interaction):
-        await interaction.response.send_message("権限がありません。", ephemeral=True)
-        await audit(interaction, "operation_failure", False, batch_id, [question_id] if question_id else None)
+    if not await defer_interaction(interaction):
         return
-    await interaction.response.defer(ephemeral=True)
-    selected_ids = [question_id] if question_id else []
-    target_batch_id = batch_id
-    action = "question_delete" if question_id else "batch_delete"
-    try:
-        spreadsheet_id, title = await asyncio.to_thread(sheet_config)
-        rows = await asyncio.to_thread(read_rows)
-        if bool(batch_id) == bool(question_id):
-            await audit_failure(interaction, action, batch_id, selected_ids)
-            await send_pages(interaction, "batch_id または question_id のどちらか一方を指定してください。")
+    async with _SHEET_MUTATION_LOCK:
+        if not allowed_user(interaction):
+            await interaction.followup.send("権限がありません。", ephemeral=True)
+            await audit(interaction, "operation_failure", False, batch_id, [question_id] if question_id else None)
             return
-        selected = [(index + 2, row) for index, row in enumerate(rows) if (row["batch_id"] == batch_id if batch_id else row["id"] == question_id)]
-        selected_ids = [row["id"] for _, row in selected]
-        target_batch_id = batch_id or (selected[0][1]["batch_id"] if selected else None)
-        if len(set(selected_ids)) != len(selected_ids):
-            raise ReconciliationError("対象問題IDが重複しており、安全に削除できません。")
-        validate_deletion_statuses([row for _, row in selected])
-        if any(row["status"] == "published" for _, row in selected) and not confirm:
-            await audit_failure(interaction, action, target_batch_id, selected_ids)
-            await send_pages(interaction, "公開済み問題を含みます。confirm を有効にして再実行してください。")
-            return
-        if not selected:
-            await audit_failure(interaction, action, target_batch_id, selected_ids)
-            await send_pages(interaction, "対象が見つかりません。")
-            return
-        sheet_id = await asyncio.to_thread(_sheet_id, title)
+        selected_ids = [question_id] if question_id else []
+        target_batch_id = batch_id
+        action = "question_delete" if question_id else "batch_delete"
+        try:
+            spreadsheet_id, title = await asyncio.to_thread(sheet_config)
+            rows = await asyncio.to_thread(read_rows)
+            if bool(batch_id) == bool(question_id):
+                await audit_failure(interaction, action, batch_id, selected_ids)
+                await send_pages(interaction, "batch_id または question_id のどちらか一方を指定してください。")
+                return
+            selected = [(index + 2, row) for index, row in enumerate(rows) if (row["batch_id"] == batch_id if batch_id else row["id"] == question_id)]
+            selected_ids = [row["id"] for _, row in selected]
+            target_batch_id = batch_id or (selected[0][1]["batch_id"] if selected else None)
+            if len(set(selected_ids)) != len(selected_ids):
+                raise ReconciliationError("対象問題IDが重複しており、安全に削除できません。")
+            validate_deletion_statuses([row for _, row in selected])
+            if any(row["status"] == "published" for _, row in selected) and not confirm:
+                await audit_failure(interaction, action, target_batch_id, selected_ids)
+                await send_pages(interaction, "公開済み問題を含みます。confirm を有効にして再実行してください。")
+                return
+            if not selected:
+                await audit_failure(interaction, action, target_batch_id, selected_ids)
+                await send_pages(interaction, "対象が見つかりません。")
+                return
+            sheet_id = await asyncio.to_thread(_sheet_id, title)
 
-        def delete_rows(row_numbers):
-            sheets_client().batchUpdate(
-                spreadsheetId=spreadsheet_id,
-                body={"requests": [{"deleteDimension": {"range": {"sheetId": sheet_id, "dimension": "ROWS", "startIndex": number - 1, "endIndex": number}}} for number in sorted(row_numbers, reverse=True)]},
-            ).execute()
+            # Include drafts too: a previously interrupted publish may have copied them.
+            await asyncio.to_thread(revoke_public_rows, selected_ids, read_public_rows, clear_public_rows)
 
-        await asyncio.to_thread(
-            delete_with_reconciliation,
-            {row["id"]: row["batch_id"] for _, row in selected}, read_rows, delete_rows,
-        )
-        await audit(interaction, action, True, target_batch_id, selected_ids)
-        await send_pages(interaction, f"{len(selected)}問を削除しました。")
-    except ReconciliationError:
-        await audit_failure(interaction, action, target_batch_id, selected_ids)
-        await report_reconciliation_error(interaction, target_batch_id)
-    except Exception:
-        await audit_failure(interaction, action, target_batch_id, selected_ids)
-        await report_operation_error(interaction)
+            def delete_rows(row_numbers):
+                sheets_client().batchUpdate(
+                    spreadsheetId=spreadsheet_id,
+                    body={"requests": [{"deleteDimension": {"range": {"sheetId": sheet_id, "dimension": "ROWS", "startIndex": number - 1, "endIndex": number}}} for number in sorted(row_numbers, reverse=True)]},
+                ).execute()
+
+            await asyncio.to_thread(
+                delete_with_reconciliation,
+                {row["id"]: row["batch_id"] for _, row in selected}, read_rows, delete_rows,
+            )
+            await audit(interaction, action, True, target_batch_id, selected_ids)
+            await send_pages(interaction, f"{len(selected)}問を削除しました。")
+        except ReconciliationError:
+            await audit_failure(interaction, action, target_batch_id, selected_ids)
+            await report_reconciliation_error(interaction, target_batch_id)
+        except Exception:
+            await audit_failure(interaction, action, target_batch_id, selected_ids)
+            await report_operation_error(interaction)
 
 
 def _sheet_id(title: str) -> int:
@@ -356,4 +473,12 @@ if __name__ == "__main__":
     token = os.environ.get("DISCORD_BOT_TOKEN")
     if not token:
         raise SystemExit("DISCORD_BOT_TOKEN を bot/.env に設定してください。")
-    bot.run(token)
+    lock_path = Path(__file__).with_name("history_bot.lock")
+    try:
+        instance_lock = acquire_instance_lock(lock_path)
+    except AlreadyRunningError:
+        raise SystemExit("別のHistory Botプロセスが起動中です。既存プロセスを確認してください。") from None
+    try:
+        bot.run(token)
+    finally:
+        release_instance_lock(instance_lock)

@@ -1,0 +1,18 @@
+{
+  "name": "vocabulary-app",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.12.0"
+  },
+  "scripts": {
+    "test": "node --test tests/history_questions.test.mjs tests/quiz-choices.test.mjs tests/meaning-display.test.mjs tests/history-progress.test.mjs",
+    "test:rules": "firebase emulators:exec --config firebase.test.json --project demo-vocab-app-security --only firestore \"node --test tests/firestore.rules.test.mjs\"",
+    "test:rules:improved": "firebase emulators:exec --config firebase.test.json --project demo-vocab-app-security --only firestore,auth \"node --test tests/firestore.improved.rules.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "6.0.0",
+    "firebase": "13.0.0",
+    "firebase-tools": "15.34.1"
+  }
+}

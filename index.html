@@ -714,6 +714,16 @@
         <button class="change-sheet-button" onclick="showPage('homePage')">ホームへ戻る</button>
     </div>
     <div id="historyStatus" class="history-status" role="status" aria-live="polite"></div>
+    <label for="historyCount">問題数（次の学習から適用）</label>
+    <select id="historyCount">
+        <option value="10">10問</option>
+        <option value="20">20問</option>
+        <option value="30">30問</option>
+        <option value="50">50問</option>
+        <option value="unlimited">すべて</option>
+    </select>
+    <p id="historySummary" class="history-result" role="status"></p>
+    <p id="historySaveStatus" role="status"></p>
     <div id="historyEndActions" class="history-actions" style="display:none;">
         <button class="secondary-button" onclick="startHistoryQuiz()">もう一度解く</button>
         <button class="back-button" onclick="showPage('homePage')">学習トップへ戻る</button>

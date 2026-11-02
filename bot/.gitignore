@@ -4,5 +4,6 @@ service-account*.json
 *.log
 *.jsonl
 *.tmp
+history_bot.lock
 __pycache__/
 *.py[cod]

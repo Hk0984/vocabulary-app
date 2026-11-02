@@ -62,6 +62,15 @@ class AuditLogTests(unittest.TestCase):
             self.assertEqual([event["action"] for event in events], ["question_delete", "operation_failure"])
             self.assertEqual([event["success"] for event in events], [True, False])
 
+    def test_records_publication_repair_action(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "audit.jsonl"
+            record_operation(path, user_id=9, action="publication_repair", success=True,
+                             batch_id="b-repair", question_ids=["q1"])
+            event = json.loads(path.read_text(encoding="utf-8").strip())
+            self.assertEqual(event["action"], "publication_repair")
+            self.assertTrue(event["success"])
+
 
 if __name__ == "__main__":
     unittest.main()

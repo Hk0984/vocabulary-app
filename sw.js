@@ -1,10 +1,12 @@
-const CACHE_NAME = "vocab-app-v1";
+const CACHE_NAME = "vocab-app-v2";
 
 const APP_SHELL = [
     "./",
     "./index.html",
     "./style.css",
     "./script.js",
+    "./history-config.js",
+    "./history_questions.js",
     "./manifest.json",
     "./icons/icon-192.png",
     "./icons/icon-512.png"

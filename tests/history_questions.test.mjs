@@ -41,6 +41,8 @@ function makeApp(config = {}) {
     const context = { document, console, HISTORY_QUESTIONS_CONFIG: config, showPage() {} };
     context.window = context;
     context.globalThis = context;
+    context.Math = Object.create(Math);
+    context.Math.random = () => 0.999;
     vm.runInNewContext(clientCode, context, { filename: 'history_questions.js' });
     return { context, elements };
 }
@@ -56,6 +58,84 @@ test('history entry and quiz reuse the shared question and choice styles', () =>
     assert.match(styles, /#choices,\s*\.history-choices/);
     assert.match(styles, /\.choice\.correct/);
     assert.match(styles, /\.choice\.incorrect/);
+});
+
+test('seeded shuffling changes question and choice orders while preserving answers and unique IDs', () => {
+    const { context } = makeApp();
+    const core = context.HistoryQuestionCore;
+    const rows = core.parseHistoryQuestionValues([headers, ...Array.from({ length: 12 }, (_, i) => question('q' + i))]);
+    const original = JSON.stringify(rows);
+    const session = core.createSession(rows, 10, () => 0);
+    assert.equal(session.length, 10);
+    assert.equal(new Set(session.map(row => row.id)).size, 10);
+    assert.notEqual(session[0].id, rows[0].id);
+    assert.notEqual(session[0].choices[0].text, rows[0].choice1);
+    for (const row of session) {
+        assert.equal(row.choices.filter(choice => choice.correct).length, 1);
+        assert.equal(row.choices.find(choice => choice.correct).text, row['choice' + row.answer]);
+    }
+    assert.equal(JSON.stringify(rows), original);
+    assert.equal(core.createSession(rows, 30).length, 12);
+    assert.equal(core.createSession(rows, 'unlimited').length, 12);
+    assert.equal(core.createSession([...rows, rows[0]], 20).length, 12);
+});
+
+test('accepts optional explanation, rejects private status columns and non-array records', () => {
+    const { context } = makeApp();
+    const parse = context.HistoryQuestionCore.parseHistoryQuestionValues;
+    const emptyExplanation = question('empty');
+    emptyExplanation.pop(); // Sheets omits trailing empty cells.
+    assert.equal(parse([headers, emptyExplanation]).length, 1);
+    assert.equal(parse([headers, null, {}, [...question('draft'), 'draft']]).length, 0);
+    assert.equal(parse([[...headers, 'status'], [...question('private'), 'published']]).length, 0);
+});
+
+test('shuffled UI grades once, shows explanation and final counts, and saves history once per answer', async () => {
+    const { context, elements } = makeApp({ spreadsheetId: 'test', sheetName: 'history_questions', apiKey: 'test' });
+    context.Math.random = () => 0;
+    context.document.getElementById('historyCount').value = '20';
+    const saved = [];
+    context.recordHistoryAnswer = async (row, correct) => { saved.push({ id: row.id, correct }); return true; };
+    context.fetch = async () => ({ ok: true, json: async () => ({ values: [headers, question('a'), question('b')] }) });
+    await context.startHistoryQuiz();
+    context.nextHistoryQuestion(); // Must not advance before answering.
+    assert.match(elements.get('historyProgress').textContent, /1 \/ 2/);
+    let buttons = elements.get('historyChoices').children;
+    const correctButton = buttons.find(button => button.textContent.endsWith('選択肢B'));
+    correctButton.listeners.click();
+    correctButton.listeners.click();
+    assert.match(elements.get('historyResult').textContent, /正解です.*選択肢B\n解説文/);
+    assert.ok(correctButton.classList.values.has('correct'));
+    context.nextHistoryQuestion();
+    buttons = elements.get('historyChoices').children;
+    const wrong = buttons.find(button => button.textContent.endsWith('選択肢A'));
+    wrong.listeners.click();
+    assert.match(elements.get('historyResult').textContent, /不正解です/);
+    assert.ok(wrong.classList.values.has('incorrect'));
+    context.nextHistoryQuestion();
+    context.nextHistoryQuestion(); // Completion also cannot run twice.
+    assert.match(elements.get('historySummary').textContent, /出題 2問・正解 1問・不正解 1問（正答率 50%）/);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(saved.length, 2);
+    assert.equal(new Set(saved.map(row => row.id)).size, 2);
+});
+
+test('save failures preserve results and a stale fetch cannot overwrite a restarted session', async () => {
+    const { context, elements } = makeApp({ spreadsheetId: 'test', sheetName: 'history_questions', apiKey: 'test' });
+    let resolveOld;
+    context.fetch = () => new Promise(resolve => { resolveOld = resolve; });
+    const old = context.startHistoryQuiz();
+    context.fetch = async () => ({ ok: true, json: async () => ({ values: [headers, question('new')] }) });
+    await context.startHistoryQuiz();
+    resolveOld({ ok: true, json: async () => ({ values: [] }) });
+    await old;
+    assert.equal(elements.get('historyQuiz').style.display, '');
+    context.recordHistoryAnswer = async () => { throw new Error('private failure'); };
+    elements.get('historyChoices').children[1].listeners.click();
+    context.nextHistoryQuestion();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.match(elements.get('historySaveStatus').textContent, /保存できませんでした/);
+    assert.match(elements.get('historySummary').textContent, /正答率 100%/);
 });
 
 test('parser keeps valid Japanese rows and excludes malformed, invalid-answer, and duplicate rows', () => {

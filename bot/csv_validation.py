@@ -42,7 +42,7 @@ def parse_csv(data: bytes) -> list[dict[str, str]]:
             raise CsvValidationError(f"{line}行目: 列数が不正です。")
         row = {key: value.strip() for key, value in row.items()}
         for key in HEADERS:
-            if not row[key]:
+            if not row[key] and key != "explanation":
                 raise CsvValidationError(f"{line}行目: {key} が空欄です。")
             if len(row[key]) > MAX_CELL_LENGTHS[key]:
                 raise CsvValidationError(f"{line}行目: {key} は最大{MAX_CELL_LENGTHS[key]}文字です。")

@@ -45,10 +45,12 @@ class CsvValidationTests(unittest.TestCase):
             parse_csv(csv_bytes([row]))
 
     def test_empty_required_value_rejected(self):
-        row = self.row.copy()
-        row[8] = ""
-        with self.assertRaisesRegex(CsvValidationError, "空欄"):
-            parse_csv(csv_bytes([row]))
+        for index in range(8):
+            with self.subTest(column=index):
+                row = self.row.copy()
+                row[index] = ""
+                with self.assertRaisesRegex(CsvValidationError, "空欄"):
+                    parse_csv(csv_bytes([row]))
 
     def test_missing_choice_rejected(self):
         row = self.row.copy()

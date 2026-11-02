@@ -2453,6 +2453,7 @@ function getProgressDocumentId(
 // ============================================================
 
 function getWordKey(word) {
+    if (word?.historyId) return `history_${word.historyId}`;
 
     // IDがある場合はIDを使用
     if (
@@ -2477,10 +2478,10 @@ function getWordKey(word) {
 // 単語の進捗取得
 // ============================================================
 
-function getWordProgress(word) {
+function getWordProgress(word, sheetName = selectedSheet) {
 
     if (
-        !selectedSheet ||
+        !sheetName ||
         !word
     ) {
 
@@ -2490,7 +2491,7 @@ function getWordProgress(word) {
 
     const sheetProgress =
         progress[
-            selectedSheet
+            sheetName
         ];
 
 
@@ -2516,7 +2517,8 @@ function getWordProgress(word) {
 
 async function recordAnswer(
     word,
-    isCorrect
+    isCorrect,
+    sheetName = selectedSheet
 ) {
 
     if (!currentUser) {
@@ -2533,14 +2535,14 @@ async function recordAnswer(
     }
 
 
-    if (!selectedSheet) {
+    if (!sheetName) {
         return;
     }
 
 
     const sheetId =
         getProgressDocumentId(
-            selectedSheet
+            sheetName
         );
 
     const wordKey =
@@ -2548,7 +2550,7 @@ async function recordAnswer(
 
 
     const current =
-        getWordProgress(word) || {
+        getWordProgress(word, sheetName) || {
             correct: 0,
             wrong: 0,
             total: 0
@@ -2607,15 +2609,15 @@ async function recordAnswer(
     // --------------------------------------------------------
 
     if (
-        !progress[selectedSheet]
+        !progress[sheetName]
     ) {
 
-        progress[selectedSheet] =
+        progress[sheetName] =
             {};
     }
 
 
-    progress[selectedSheet][
+    progress[sheetName][
         wordKey
     ] =
         updated;
@@ -3473,4 +3475,16 @@ function shuffleArray(array) {
 
 
     return array;
+}
+
+// Preserve existing progress fields; history uses its reserved genre.
+async function recordHistoryAnswer(question, correct) {
+    if (!currentUser || currentUser.isAnonymous) return false;
+    await recordAnswer({
+        historyId: question.id,
+        front: question.question,
+        back: question["choice" + question.answer],
+        id: null
+    }, correct, "history_questions");
+    return true;
 }

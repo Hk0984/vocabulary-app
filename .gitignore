@@ -1,0 +1,22 @@
+node_modules/
+.firebase/
+emulator-data/
+*-debug.log
+.env
+.env.*
+!.env.example
+# Local credentials and private keys
+*.pem
+*.p12
+*.key
+*service-account*.json
+/secrets/
+.venv/
+__pycache__/
+*.py[cod]
+*.jsonl
+*credentials*.json
+firebase-adminsdk*.json
+*-firebase-adminsdk-*.json
+*-test-output.log
+.vscode/
