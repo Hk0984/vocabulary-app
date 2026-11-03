@@ -55,6 +55,13 @@ let progressLoad = { status: "idle", uid: null, request: 0 };
 let accountGeneration = 0;
 let progressRenderRequest = 0;
 let progressViewContext = null;
+let pageGeneration = 0;
+let sheetSelectionRequest = 0;
+let historyQuestions = [];
+const historyFilters = {periods:new Set(),centuries:new Set(),areas:new Set()};
+let settingsUseHistory = false;
+let vocabularySettingsSnapshot = null;
+let historySettingsSnapshot = {mode:'normal',count:'10'};
 
 let studySettings = {
     mode: "normal",
@@ -117,6 +124,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 // ============================================================
 
 function showPage(pageId) {
+    pageGeneration += 1;
 
     const pages =
         document.querySelectorAll("main > section");
@@ -145,7 +153,7 @@ function showPage(pageId) {
 
     if (
         protectedPages.includes(pageId) &&
-        !currentUser
+        !currentUser && !(pageId === 'settingsPage' && selectedSheet === 'history_questions')
     ) {
 
         const home =
@@ -161,6 +169,7 @@ function showPage(pageId) {
     target.style.display = "";
 
     if (pageId === "settingsPage") {
+        configureGenreSettings();
         updateRangeUI();
         updateBeginStudyButton();
         updateFormatLabels();
@@ -977,20 +986,7 @@ function renderSheetList() {
 
     container.innerHTML = "";
 
-    if (SHEETS.length === 0) {
-
-        container.innerHTML =
-            "<p>ジャンルがありません。</p>";
-
-        return;
-    }
-
-
-    SHEETS.forEach(sheet => {
-
-        if (sheet.title === "history_questions") {
-            return;
-        }
+    learningGenres().forEach(sheet => {
 
         const button =
             document.createElement(
@@ -1001,7 +997,7 @@ function renderSheetList() {
             "sheet-button";
 
         button.textContent =
-            sheet.title;
+            genreLabel(sheet.title);
 
         button.onclick =
             () => selectSheet(sheet.title);
@@ -1019,9 +1015,14 @@ function renderSheetList() {
 
 async function selectSheet(sheetName) {
     const account = captureAccountContext();
+    const selection = ++sheetSelectionRequest;
+    if (sheetName === 'history_questions') return selectHistoryGenre(account, selection);
+    const page = pageGeneration;
 
     selectedSheet =
         sheetName;
+    studyWords = [];
+    updateBeginStudyButton();
 
     try {
 
@@ -1029,7 +1030,7 @@ async function selectSheet(sheetName) {
             await fetchSheetData(
                 sheetName
             );
-        if (!isCurrentAccount(account)) return;
+        if (!isCurrentAccount(account) || selection !== sheetSelectionRequest || page !== pageGeneration) return;
 
         studyWords =
             parseSheetData(values);
@@ -1055,7 +1056,7 @@ async function selectSheet(sheetName) {
 
     } catch (error) {
 
-        if (!isCurrentAccount(account)) return;
+        if (!isCurrentAccount(account) || selection !== sheetSelectionRequest || page !== pageGeneration) return;
         console.error(
             "selectSheet error:",
             error
@@ -1109,7 +1110,7 @@ function updateSelectedSheetName() {
 
         if (element) {
             element.textContent =
-                selectedSheet || "-";
+                genreLabel(selectedSheet) || "-";
         }
     });
 }
@@ -1199,6 +1200,11 @@ function updateRangeUI() {
 // ============================================================
 
 function updateBeginStudyButton() {
+    if (selectedSheet === 'history_questions') {
+        const button = document.getElementById('beginStudyButton');
+        if (button) button.disabled = !historyCandidates().length;
+        return;
+    }
 
     const button =
         document.getElementById(
@@ -1305,6 +1311,11 @@ function updateFormatLabels() {
 // ============================================================
 
 function beginStudy() {
+    if (selectedSheet === 'history_questions') {
+        const candidates = historyCandidates();
+        if (candidates.length) window.startHistoryQuiz({questions:candidates,count:studySettings.count});
+        return;
+    }
     setText("studySaveStatus", "");
     if (currentUser && !currentUser.isAnonymous &&
         ["weak", "unlearned", "incorrect"].includes(studySettings.mode) &&
@@ -2392,6 +2403,7 @@ async function loadProgress() {
         progress = loaded;
         progressLoad.status = "ready";
         showProgressLoadStatus("", false);
+        if (selectedSheet === 'history_questions') updateBeginStudyButton();
         if (document.getElementById("progressPage")?.style.display === "") {
             loadProgressSheetList();
             if (displayedSheet) await renderProgress(displayedSheet);
@@ -2427,6 +2439,7 @@ async function handleAuthStateChanged(user) {
     const account = captureAccountContext();
     updateHeader();
     showPage(user ? "sheetPage" : "homePage");
+    const initialPage = pageGeneration;
     if (!user) {
         hideNavigation();
         return;
@@ -2436,7 +2449,7 @@ async function handleAuthStateChanged(user) {
     if (!isCurrentAccount(account)) return;
     await loadProgress();
     if (!isCurrentAccount(account)) return;
-    showPage("sheetPage");
+    if (pageGeneration === initialPage) showPage("sheetPage");
 }
 
 function isCurrentAccount(account) {
@@ -2455,6 +2468,8 @@ function clearProgressView(clearGenres = false) {
 }
 
 function clearAccountViews() {
+    historyQuestions = [];
+    sheetSelectionRequest += 1;
     clearProgressView(true);
     studyWords = [];
     currentIndex = 0;
@@ -2474,6 +2489,7 @@ function clearAccountViews() {
 
 function isCurrentProgressView(view) {
     return currentUser && isCurrentAccount(view.account) && progressLoad.request === view.loadRequest &&
+        (view.pageGeneration === undefined || view.pageGeneration === pageGeneration) &&
         progressRenderRequest === view.renderRequest &&
         (currentUser.isAnonymous || (progressLoad.status === "ready" && progressLoad.uid === currentUser.uid));
 }
@@ -2666,16 +2682,7 @@ function loadProgressSheetList() {
     container.innerHTML = "";
 
 
-    if (SHEETS.length === 0) {
-
-        container.innerHTML =
-            "<p>ジャンルがありません。</p>";
-
-        return;
-    }
-
-
-    SHEETS.forEach(
+    learningGenres().forEach(
         sheet => {
 
             const button =
@@ -2687,7 +2694,7 @@ function loadProgressSheetList() {
                 "progress-sheet-button";
 
             button.textContent =
-                sheet.title;
+                genreLabel(sheet.title);
 
             button.onclick =
                 () =>
@@ -2721,7 +2728,7 @@ async function renderProgress(
     }
     clearProgressView();
     const view = { account: captureAccountContext(), loadRequest: progressLoad.request,
-        renderRequest: progressRenderRequest, sheetName };
+        renderRequest: progressRenderRequest, sheetName, pageGeneration };
 
     try {
 
@@ -2729,16 +2736,11 @@ async function renderProgress(
             sheetName;
 
 
-        const values =
-            await fetchSheetData(
-                sheetName
-            );
+        const values = sheetName === 'history_questions' ? null : await fetchSheetData(sheetName);
+        const historyRows = sheetName === 'history_questions' ? await window.loadHistoryQuestions() : null;
         if (!isCurrentProgressView(view)) return;
 
-        const words =
-            parseSheetData(
-                values
-            );
+        const words = historyRows ? historyRows.map(historyProgressWord) : parseSheetData(values);
 
 
         const sheetProgress =
@@ -2834,7 +2836,7 @@ async function renderProgress(
 
         setText(
             "progressSheetName",
-            sheetName
+            genreLabel(sheetName)
         );
 
         setText(
@@ -2931,7 +2933,7 @@ async function renderProgress(
 
             setText(
                 `bucket${i}`,
-                `${buckets[i]}単語`
+                `${buckets[i]}${sheetName === 'history_questions' ? '問' : '単語'}`
             );
         }
 
@@ -3507,4 +3509,150 @@ async function recordHistoryAnswer(question, correct) {
         id: null
     }, correct, "history_questions");
     return true;
+}
+
+function genreLabel(name) { return name === 'history_questions' ? '世界史一問一答' : name; }
+function learningGenres() { return [...SHEETS.filter(s=>s.title!=='history_questions'), {title:'history_questions'}]; }
+function historyProgressWord(question) { return {historyId:question.id,id:null,front:question.question,back:question['choice'+question.answer]}; }
+
+async function openHistorySettings() { return selectSheet('history_questions'); }
+
+function configureGenreSettings() {
+    const history = selectedSheet === 'history_questions';
+    if (history !== settingsUseHistory) {
+        if (history) {
+            vocabularySettingsSnapshot = {...studySettings};
+            studySettings = {...studySettings,...historySettingsSnapshot};
+        } else {
+            historySettingsSnapshot = {mode:studySettings.mode,count:studySettings.count};
+            studySettings = {...(vocabularySettingsSnapshot || studySettings)};
+        }
+        settingsUseHistory = history;
+    }
+    for (const id of ['vocabularyMeaning','vocabularyFormat','vocabularyRange']) {
+        const section=document.getElementById(id);
+        if (section) {
+            section.hidden=history;
+            section.querySelectorAll('button,input,select').forEach(control=>{control.disabled=history;});
+        }
+    }
+    const filters=document.getElementById('historyFilters');
+    if(filters)filters.hidden=!history;
+    const count=document.getElementById('historyThirty');
+    if(count){count.hidden=!history;count.disabled=!history;}
+    if(!history&&studySettings.count==='30')studySettings.count='10';
+    const labels = {normal:['通常学習','すべての問題から出題'],weak:['苦手問題','累積誤答率41%以上'],incorrect:['間違えた問題','1回でも間違えた問題'],unlearned:['未学習問題','まだ回答していない問題']};
+    document.querySelectorAll('.setting-option[data-setting="mode"]').forEach(button=>{
+        if(!button.dataset?.value)return;
+        button.classList.toggle('selected',button.dataset.value===studySettings.mode);
+        const pair=labels[button.dataset.value];
+        const strong=button.querySelector?.('strong'),span=button.querySelector?.('span');
+        if(strong)strong.textContent=history?pair[0]:{normal:'通常学習',weak:'苦手単語',incorrect:'間違えた単語',unlearned:'未学習単語'}[button.dataset.value];
+        if(span)span.textContent=history?pair[1]:{normal:'すべての単語から出題',weak:'誤答率41%以上の単語',incorrect:'1回でも間違えたことのある単語',unlearned:'まだ回答したことのない単語'}[button.dataset.value];
+    });
+    document.querySelectorAll('.setting-option[data-setting="count"]').forEach(button=>{
+        if(button.dataset)button.classList.toggle('selected',button.dataset.value===String(studySettings.count));
+    });
+}
+
+async function selectHistoryGenre(account, selection) {
+    selectedSheet='history_questions'; historyQuestions=[];
+    updateSelectedSheetName(); showPage('settingsPage');
+    const page=pageGeneration;
+    setText('settingsMessage','世界史の公開問題と地域マスターを読み込んでいます…');
+    updateBeginStudyButton();
+    try {
+        const rows=await window.loadHistoryQuestions();
+        if(!isCurrentAccount(account)||selection!==sheetSelectionRequest||page!==pageGeneration||selectedSheet!=='history_questions')return;
+        historyQuestions=rows;
+        renderHistoryFilters();
+        updateBeginStudyButton();
+    } catch (_) {
+        if(!isCurrentAccount(account)||selection!==sheetSelectionRequest||page!==pageGeneration)return;
+        setText('settingsMessage','世界史の問題を取得できませんでした。接続を確認し、世界史ジャンルを選び直してください。');
+    }
+}
+
+function historySavingNotice() {
+    if(!currentUser||currentUser.isAnonymous)return '未ログイン・匿名利用では履歴を保存しません。';
+    if(progressLoad.status!=='ready'||progressLoad.uid!==currentUser.uid)return '履歴が未読込のため保存を停止しています。履歴を再読み込みしてください。';
+    return '';
+}
+
+function historyCandidates() {
+    const mode=studySettings.mode;
+    if(mode!=='normal'&&currentUser&&!currentUser.isAnonymous&&(progressLoad.status!=='ready'||progressLoad.uid!==currentUser.uid)) {
+        setText('settingsMessage','履歴を読み込めないため、このモードは開始できません。履歴を再読み込みしてください。');
+        return [];
+    }
+    const core=window.HistoryClassification;
+    if(!core?.master)return [];
+    const records=progress.history_questions||{};
+    const result=historyQuestions.filter(q=>{
+        const p=records['history_'+q.id]||{},total=Number(p.total||0),wrong=Number(p.wrong||0);
+        const allowed=mode==='normal'||(mode==='weak'&&total>0&&wrong/total>=0.41)||(mode==='incorrect'&&wrong>0)||(mode==='unlearned'&&total===0);
+        return allowed&&core.matches(q,Object.fromEntries(Object.entries(historyFilters).map(([key,set])=>[key,[...set]])),core.master);
+    });
+    setText('settingsMessage', result.length ? `条件に合う問題：${result.length}問。${historySavingNotice()}` : '条件に合う問題がありません。学習モード・分類を変更するか、公開問題の登録を確認してください。');
+    return result;
+}
+
+function renderHistoryFilters() {
+    const container=document.getElementById('historyFilterOptions');
+    if(!container)return;
+    container.replaceChildren();
+    const core=window.HistoryClassification,master=core.master;
+    const checkboxes=[];
+    function updateChecks() {
+        for(const {input,axis,code} of checkboxes) {
+            const selected=historyFilters[axis]; input.checked=selected.has(code);
+            if(axis==='areas') {
+                const children=[...core.descendants(master,[code])].filter(c=>c!==code);
+                input.indeterminate=children.some(c=>selected.has(c))&&(!selected.has(code)||children.some(c=>!selected.has(c)));
+            }
+        }
+        for(const [axis,set]of Object.entries(historyFilters))setText('historySelected_'+axis,`${set.size}件選択（0件は全範囲）`);
+        updateBeginStudyButton();
+    }
+    function box(parent,axis,code,label) {
+        const line=document.createElement('label'),input=document.createElement('input');
+        input.type='checkbox'; input.value=code;input.dataset.axis=axis;
+        input.addEventListener('change',()=>{
+            const selected=historyFilters[axis];
+            const affected=axis==='areas'?[...core.descendants(master,[code])]:[code];
+            for(const c of affected)input.checked?selected.add(c):selected.delete(c);
+            if(!input.checked&&axis==='areas')for(const ancestor of [...selected])if(core.descendants(master,[ancestor]).has(code))selected.delete(ancestor);
+            updateChecks();
+        });
+        line.appendChild(input);line.appendChild(document.createTextNode(label));parent.appendChild(line);
+        checkboxes.push({input,axis,code});
+    }
+    for(const [axis,label]of [['periods','時代'],['centuries','世紀'],['areas','地域']]) {
+        const details=document.createElement('details'),summary=document.createElement('summary'),count=document.createElement('span');
+        count.id='historySelected_'+axis;summary.textContent=label+' ';summary.appendChild(count);details.appendChild(summary);
+        const controls=document.createElement('div');controls.className='history-filter-controls';
+        const entries=axis==='periods'?Object.keys(core.PERIODS):axis==='centuries'?[...new Set(historyQuestions.flatMap(q=>q.century_codes.split(';').filter(Boolean)))].sort((a,b)=>core.centuryRange(a)[0]-core.centuryRange(b)[0]):[...master.values()].filter(n=>n.active).map(n=>n.code);
+        for(const [text,select]of [['全範囲（指定なし）',false],['すべてチェック',true]]){
+            const button=document.createElement('button');button.type='button';button.className='change-sheet-button';button.textContent=text;
+            button.addEventListener('click',()=>{historyFilters[axis].clear();if(select)for(const code of entries)historyFilters[axis].add(code);updateChecks();});controls.appendChild(button);
+        }
+        details.appendChild(controls);
+        if(axis==='areas') {
+            function node(parent,region,path=new Set()) {
+                if(!region.active||path.has(region.code))return;
+                const children=[...master.values()].filter(n=>n.parents.includes(region.code)&&n.active);
+                const group=document.createElement(children.length?'details':'div');group.className='history-region-node';
+                if(children.length){const title=document.createElement('summary');title.textContent=region.label;group.appendChild(title);}
+                box(group,axis,region.code,region.label+' 全体');
+                for(const child of children)node(group,child,new Set([...path,region.code]));
+                parent.appendChild(group);
+            }
+            for(const region of master.values())if(!region.parents.length)node(details,region);
+        } else {
+            for(const code of entries)box(details,axis,code,axis==='periods'?core.PERIOD_LABELS[code]:(code.startsWith('bce_')?'紀元前':'西暦')+Number(code.split('_')[1])+'世紀');
+            if(!entries.length){const note=document.createElement('p');note.textContent='世紀が分類された問題はまだありません。';details.appendChild(note);}
+        }
+        container.appendChild(details);
+    }
+    updateChecks();
 }

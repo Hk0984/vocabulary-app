@@ -70,6 +70,36 @@ function app(shared = new Map()) {
     return { context, writes, shared, controls, elements, alerts };
 }
 
+test('rebuilt question IDs remain separate from legacy history in the same document',async()=>{
+    const {context,writes}=app();
+    await context.recordHistoryAnswer({id:'7',question:'old',answer:'1',choice1:'A'},true);
+    await context.recordHistoryAnswer({id:'hv1_rebuild1_7',question:'new',answer:'1',choice1:'A'},false);
+    assert.equal(writes[0].value.history_7.total,1);
+    assert.equal(writes[1].value.history_hv1_rebuild1_7.total,1);
+    assert.deepEqual(Array.from(writes[1].path),['test-user','history_questions']);
+});
+
+test('v2 smoke ID preserves legacy English, classical Japanese and history records across tabs',async()=>{
+    const shared=new Map();
+    const oldHistory={total:9,correct:7,wrong:2,front:'legacy question',back:'legacy answer'};
+    const oldWord={total:4,correct:3,wrong:1};
+    shared.set('/users/test-user/progress/history_questions',{version:1,data:{history_legacy:oldHistory}});
+    shared.set('/users/test-user/progress/English',{version:1,data:{id_7:oldWord}});
+    shared.set('/users/test-user/progress/古文',{version:1,data:{id_7:oldWord}});
+    const a=app(shared),b=app(shared);
+    await Promise.all([a.context.loadProgress(),b.context.loadProgress()]);
+    const question={id:'hv1_rebuild1_smoke_001',question:'1919年の条約',answer:'1',choice1:'ヴェルサイユ条約'};
+    await Promise.all([a.context.recordHistoryAnswer(question,true),b.context.recordHistoryAnswer(question,false)]);
+    const data=shared.get('/users/test-user/progress/history_questions').data;
+    const saved=data.history_hv1_rebuild1_smoke_001;
+    assert.equal(saved.total,2);assert.equal(saved.correct,1);assert.equal(saved.wrong,1);
+    assert.deepEqual(data.history_legacy,oldHistory);
+    assert.deepEqual(shared.get('/users/test-user/progress/English').data.id_7,oldWord);
+    assert.deepEqual(shared.get('/users/test-user/progress/古文').data.id_7,oldWord);
+    await a.context.loadProgress();
+    assert.equal(vm.runInContext('progress.history_questions.history_hv1_rebuild1_smoke_001.total',a.context),2);
+});
+
 test('history uses existing progress fields in a separate genre and preserves English state', async () => {
     const { context, writes } = app();
     await vm.runInContext('recordAnswer({ id: 7, front: "apple", back: "りんご" }, true)', context);
@@ -403,7 +433,8 @@ test('same account reload clears derived views, refreshes them, and invalidates 
     await reload;
     assert.equal(context.isCurrentAccount(account),true);
     assert.equal(elements.get('totalQuestions').textContent,'3');
-    assert.equal(elements.get('progressSheetList').children.length,1);
+    assert.equal(elements.get('progressSheetList').children.length,2);
+    assert.equal(elements.get('progressSheetList').children[1].textContent,'世界史一問一答');
     const old = deferred();
     context.fetchSheetData = () => old.promise;
     const draw = context.renderProgress('English');

@@ -82,13 +82,15 @@ const css = await readFile(path.join(root, 'style.css'), 'utf8');
 const baseline = process.env.UI_BASE_REF || '7a24ffe0911b9fc6dd6fccddd6155f08afd87f10';
 const oldCss = execFileSync('git', ['show', baseline + ':style.css'], { cwd: root, encoding: 'utf8' });
 const historyCode = await readFile(path.join(root, 'history_questions.js'), 'utf8');
+const classificationCode = await readFile(path.join(root, 'history-classification.js'), 'utf8');
+const regionData = JSON.parse(await readFile(path.join(root,'history-regions.json'),'utf8'));
+const appCode = await readFile(path.join(root,'script.js'),'utf8');
 const row = ['test', 'source', '世界史の長い問題文。'.repeat(12),
     '長い選択肢'.repeat(15), '正しい選択肢', '選択肢C', 'https://example.invalid/' + 'x'.repeat(150), '2',
     '解説は回答した後に表示します。\n' + '歴史的な背景についての長い説明。'.repeat(35)];
 const fixtureCode = `
     window.HISTORY_QUESTIONS_CONFIG={spreadsheetId:'mock',sheetName:'mock',apiKey:'mock'};
     window.fetch=async()=>({ok:true,json:async()=>({values:[${JSON.stringify(['id','source_id','question','choice1','choice2','choice3','choice4','answer','explanation'])},${JSON.stringify(row)},${JSON.stringify([...row.slice(0, 8), ''])}.map((v,i)=>i===0?'second':v)]})});
-    window.showPage=id=>document.querySelectorAll('main > section').forEach(s=>s.style.display=s.id===id?'':'none');
     Math.random=()=>0.999;
 `;
 async function loadFixture(width, height) {
@@ -96,7 +98,9 @@ async function loadFixture(width, height) {
     const fixture = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
         .replace(/<link\b[^>]*>/gi, '')
         .replace('</head>', '<style id="fixtureCss">' + css + '</style></head>')
-        .replace('</body>', '<script>' + fixtureCode + historyCode + '</script></body>');
+        .replace('</body>', '<script>const originalAdd=document.addEventListener.bind(document);document.addEventListener=(name,...args)=>{if(name!=="DOMContentLoaded")originalAdd(name,...args);};' +
+            classificationCode + 'HistoryClassification.setRegions('+JSON.stringify(regionData)+');' + historyCode + appCode + fixtureCode +
+            'document.addEventListener=originalAdd;currentUser={uid:"mock",isAnonymous:true};</script></body>');
     await send('Page.navigate', { url: 'data:text/html;charset=utf-8,' + encodeURIComponent(fixture) });
     for (let i = 0; i < 100; i++) {
         if (await evaluate('typeof startHistoryQuiz === "function"')) return;
@@ -116,7 +120,17 @@ for (const [width, height] of [[375, 812], [402, 874], [1280, 900]]) {
         await evaluate('document.getElementById("fixtureCss").textContent=' + JSON.stringify(oldCss));
         for (const selector of Object.keys(english)) assert.deepEqual(await evaluate(metrics(selector)), english[selector], selector);
         await evaluate('document.getElementById("fixtureCss").textContent=' + JSON.stringify(css));
-        await evaluate('startHistoryQuiz()');
+        await evaluate('openHistorySettings()');
+        assert.equal(await evaluate('document.getElementById("settingsPage").style.display'),'');
+        assert.equal(await evaluate('document.getElementById("vocabularyRange").hidden'),true);
+        assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth'),false);
+        await evaluate(`document.querySelectorAll('#historyFilterOptions details').forEach(d=>d.open=true)`);
+        assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth'),false);
+        await evaluate(`document.querySelector('#historyFilterOptions input[value="geo.france"]').click()`);
+        assert.equal(await evaluate(`document.querySelector('#historyFilterOptions input[value="geo.normandy"]').checked`),true);
+        await evaluate(`document.querySelector('#historyFilterOptions input[value="geo.normandy"]').click()`);
+        assert.equal(await evaluate(`document.querySelector('#historyFilterOptions input[value="geo.france"]').indeterminate`),true);
+        await evaluate(`historyFilters.areas.clear();renderHistoryFilters();beginStudy()`);
         for (const [englishSelector, historySelector] of [['.current-sheet', '.history-header'], ['#question', '#historyQuestion'], ['#choices', '#historyChoices'], ['#choices .choice', '#historyChoices .choice'], ['#result', '#historyResult']]) {
             const actual = await evaluate(metrics(historySelector));
             const expected = { ...english[englishSelector] };
@@ -124,7 +138,7 @@ for (const [width, height] of [[375, 812], [402, 874], [1280, 900]]) {
             if (historySelector === '#historyQuestion') delete actual.width, delete expected.width;
             assert.deepEqual(actual, expected, historySelector);
         }
-        const layout = await evaluate(`(()=>{const b=[...document.querySelectorAll('#historyChoices button')].map(e=>e.getBoundingClientRect());return {overflow:document.documentElement.scrollWidth>innerWidth,columns:b[0].top===b[1].top&&b[2].top===b[3].top&&b[2].top>b[0].top,settingsOpen:document.querySelector('.history-settings').open,explanationHidden:document.getElementById('historyExplanation').hidden};})()`);
+        const layout = await evaluate(`(()=>{const b=[...document.querySelectorAll('#historyChoices button')].map(e=>e.getBoundingClientRect());return {overflow:document.documentElement.scrollWidth>innerWidth,columns:b[0].top===b[1].top&&b[2].top===b[3].top&&b[2].top>b[0].top,settingsOpen:false,explanationHidden:document.getElementById('historyExplanation').hidden};})()`);
         assert.deepEqual(layout, { overflow: false, columns: true, settingsOpen: false, explanationHidden: true });
         await evaluate(`document.querySelectorAll('#historyChoices button')[0].click()`);
         assert.equal(await evaluate('document.getElementById("historyAccuracy").textContent'), '正答率 0%');

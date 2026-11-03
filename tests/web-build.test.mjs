@@ -43,6 +43,7 @@ test('artifact contains exactly the reviewed web assets and excludes operational
     }
     const result = await buildWeb(options);
     const expected = ['index.html','style.css','script.js','history-config.js','history_questions.js',
+        'history-classification.js','history-regions.json',
         'pwa.js','sw.js','manifest.json','icons/icon-192.png','icons/icon-512.png','release.json'].sort();
     assert.deepEqual(await filesIn(options.outputDir), expected);
     assert.deepEqual(result.files.sort(), expected);
@@ -147,4 +148,38 @@ test('rollback reruns create a fresh artifact and deploy the matching run attemp
     assert.notEqual(render(review,1),render(review,2));
     assert.notEqual(render(pages,1),render(pages,2));
     assert.equal(render(pages,2),render(deployed,2));
+});
+
+test('new public environment build changes only public connection and retains the original config',async t=>{
+    const options=await fixture(t);
+    const config='window.HISTORY_QUESTIONS_CONFIG={spreadsheetId:"old-public",sheetName:"old",apiKey:"test-public-key"};\n';
+    await writeFile(path.join(options.sourceDir,'history-config.js'),config);
+    const override={spreadsheetId:'new-public',sheetName:'new',expectedIdPrefix:'hv1_rebuild1_',requireCurrentSchema:true};
+    await buildWeb({...options,publicConfig:override});
+    const context={window:{}};vm.runInNewContext(await readFile(path.join(options.outputDir,'history-config.js'),'utf8'),context);
+    assert.equal(context.window.HISTORY_QUESTIONS_CONFIG.spreadsheetId,'new-public');
+    assert.equal(context.window.HISTORY_QUESTIONS_CONFIG.expectedIdPrefix,'hv1_rebuild1_');
+    assert.equal(context.window.HISTORY_QUESTIONS_CONFIG.apiKey,'test-public-key');
+    assert.equal(await readFile(path.join(options.sourceDir,'history-config.js'),'utf8'),config);
+    assert.equal((await filesIn(options.outputDir)).length,13);
+    await buildWeb({...options,outputDir:path.join(options.dir,'rollback')});
+    assert.equal(await readFile(path.join(options.dir,'rollback/history-config.js'),'utf8'),config);
+});
+
+test('invalid or private new-environment overrides fail before creating an artifact',async t=>{
+    const options=await fixture(t);
+    await writeFile(path.join(options.sourceDir,'history-config.js'),'window.HISTORY_QUESTIONS_CONFIG={spreadsheetId:"old-public",apiKey:"test-public-key"};');
+    const base={spreadsheetId:'new-public',sheetName:'new',expectedIdPrefix:'hv1_rebuild1_',requireCurrentSchema:true};
+    for(const change of [{spreadsheetId:''},{spreadsheetId:'old-public'},{expectedIdPrefix:'legacy_'},{requireCurrentSchema:false},{management_spreadsheet_id:'private'},{sheetName:'-----BEGIN PRIVATE KEY----- SYNTHETIC_TEST_ONLY'}])await assert.rejects(buildWeb({...options,publicConfig:{...base,...change}}));
+    await assert.rejects(readdir(options.outputDir),{code:'ENOENT'});
+});
+
+test('environment choice remains manual, legacy by default, with a fixed public-only config path',async()=>{
+    const workflow=JSON.parse(await readFile(new URL('../.github/workflows/web-release.yml',import.meta.url),'utf8'));
+    assert.deepEqual(Object.keys(workflow.on),['workflow_dispatch']);
+    assert.equal(workflow.on.workflow_dispatch.inputs.history_environment.default,'legacy');
+    assert.deepEqual(workflow.on.workflow_dispatch.inputs.history_environment.options,['legacy','rebuild_v1']);
+    const build=workflow.jobs.build.steps.find(s=>s.name==='Build allowlisted web assets');
+    assert.match(build.run,/--history-public-config config\/history-public-rebuild.json/);
+    assert.equal(build.env.HISTORY_ENVIRONMENT,'${{ inputs.history_environment }}');
 });

@@ -21,3 +21,6 @@ firebase-adminsdk*.json
 *-test-output.log
 .vscode/
 /dist/
+history-environments.local.json
+history-reviews.local.json
+/local-history/

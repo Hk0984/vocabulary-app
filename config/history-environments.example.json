@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "legacy_spreadsheet_ids": ["", ""],
+  "environments": {
+    "rebuild_v1": {
+      "management_spreadsheet_id": "",
+      "management_sheet_name": "history_questions",
+      "public_spreadsheet_id": "",
+      "public_sheet_name": "history_questions",
+      "id_prefix": "hv1_rebuild1_",
+      "review_file": "history-reviews.local.json"
+    }
+  }
+}

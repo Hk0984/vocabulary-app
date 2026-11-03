@@ -1,0 +1,916 @@
+{
+  "schema_version": "1.0",
+  "description": "世界史一問一答: 全地域共通の地理分類。コードは永続ID。歴史上の支配関係は表現しない。",
+  "regions": [
+    {
+      "code": "geo.europe",
+      "label": "ヨーロッパ",
+      "type": "major_region",
+      "parents": [],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.asia",
+      "label": "アジア",
+      "type": "major_region",
+      "parents": [],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.africa",
+      "label": "アフリカ",
+      "type": "major_region",
+      "parents": [],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.americas",
+      "label": "アメリカ",
+      "type": "major_region",
+      "parents": [],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.oceania",
+      "label": "オセアニア",
+      "type": "major_region",
+      "parents": [],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.west_europe",
+      "label": "西ヨーロッパ",
+      "type": "subregion",
+      "parents": [
+        "geo.europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.central_europe",
+      "label": "中央ヨーロッパ",
+      "type": "subregion",
+      "parents": [
+        "geo.europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.north_europe",
+      "label": "北ヨーロッパ",
+      "type": "subregion",
+      "parents": [
+        "geo.europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.south_europe",
+      "label": "南ヨーロッパ",
+      "type": "subregion",
+      "parents": [
+        "geo.europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.east_europe",
+      "label": "東ヨーロッパ",
+      "type": "subregion",
+      "parents": [
+        "geo.europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.southeast_europe",
+      "label": "南東ヨーロッパ",
+      "type": "subregion",
+      "parents": [
+        "geo.europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.east_asia",
+      "label": "東アジア",
+      "type": "subregion",
+      "parents": [
+        "geo.asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.southeast_asia",
+      "label": "東南アジア",
+      "type": "subregion",
+      "parents": [
+        "geo.asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.south_asia",
+      "label": "南アジア",
+      "type": "subregion",
+      "parents": [
+        "geo.asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.central_asia",
+      "label": "中央アジア",
+      "type": "subregion",
+      "parents": [
+        "geo.asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.west_asia",
+      "label": "西アジア",
+      "type": "subregion",
+      "parents": [
+        "geo.asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.north_asia",
+      "label": "北アジア",
+      "type": "subregion",
+      "parents": [
+        "geo.asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.north_africa",
+      "label": "北アフリカ",
+      "type": "subregion",
+      "parents": [
+        "geo.africa"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.west_africa",
+      "label": "西アフリカ",
+      "type": "subregion",
+      "parents": [
+        "geo.africa"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.central_africa",
+      "label": "中央アフリカ",
+      "type": "subregion",
+      "parents": [
+        "geo.africa"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.east_africa",
+      "label": "東アフリカ",
+      "type": "subregion",
+      "parents": [
+        "geo.africa"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.southern_africa",
+      "label": "南部アフリカ",
+      "type": "subregion",
+      "parents": [
+        "geo.africa"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.north_america",
+      "label": "北アメリカ",
+      "type": "subregion",
+      "parents": [
+        "geo.americas"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.central_america",
+      "label": "メキシコ・中央アメリカ",
+      "type": "subregion",
+      "parents": [
+        "geo.americas"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.caribbean",
+      "label": "カリブ海",
+      "type": "subregion",
+      "parents": [
+        "geo.americas"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.south_america",
+      "label": "南アメリカ",
+      "type": "subregion",
+      "parents": [
+        "geo.americas"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.australasia",
+      "label": "オーストラリア・ニュージーランド",
+      "type": "subregion",
+      "parents": [
+        "geo.oceania"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.pacific_islands",
+      "label": "太平洋諸島",
+      "type": "subregion",
+      "parents": [
+        "geo.oceania"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.france",
+      "label": "フランス",
+      "type": "country_area",
+      "parents": [
+        "geo.west_europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.england",
+      "label": "イングランド",
+      "type": "country_area",
+      "parents": [
+        "geo.west_europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.low_countries",
+      "label": "ネーデルラント",
+      "type": "historical_region",
+      "parents": [
+        "geo.west_europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.german_lands",
+      "label": "ドイツ地域",
+      "type": "historical_region",
+      "parents": [
+        "geo.central_europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.austria",
+      "label": "オーストリア",
+      "type": "country_area",
+      "parents": [
+        "geo.central_europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.bohemia",
+      "label": "ボヘミア",
+      "type": "historical_region",
+      "parents": [
+        "geo.central_europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.hungary",
+      "label": "ハンガリー",
+      "type": "country_area",
+      "parents": [
+        "geo.central_europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.denmark",
+      "label": "デンマーク",
+      "type": "country_area",
+      "parents": [
+        "geo.north_europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.sweden",
+      "label": "スウェーデン",
+      "type": "country_area",
+      "parents": [
+        "geo.north_europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.norway",
+      "label": "ノルウェー",
+      "type": "country_area",
+      "parents": [
+        "geo.north_europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.italy",
+      "label": "イタリア半島",
+      "type": "historical_region",
+      "parents": [
+        "geo.south_europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.iberia",
+      "label": "イベリア半島",
+      "type": "historical_region",
+      "parents": [
+        "geo.south_europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.poland",
+      "label": "ポーランド",
+      "type": "country_area",
+      "parents": [
+        "geo.east_europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.ukraine",
+      "label": "ウクライナ地域",
+      "type": "country_area",
+      "parents": [
+        "geo.east_europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.balkans",
+      "label": "バルカン半島",
+      "type": "historical_region",
+      "parents": [
+        "geo.southeast_europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.greece",
+      "label": "ギリシア",
+      "type": "country_area",
+      "parents": [
+        "geo.southeast_europe"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.china",
+      "label": "中国",
+      "type": "country_area",
+      "parents": [
+        "geo.east_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.korea",
+      "label": "朝鮮半島",
+      "type": "historical_region",
+      "parents": [
+        "geo.east_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.japan",
+      "label": "日本",
+      "type": "country_area",
+      "parents": [
+        "geo.east_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.mongolia",
+      "label": "モンゴル高原",
+      "type": "historical_region",
+      "parents": [
+        "geo.east_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.vietnam",
+      "label": "ベトナム",
+      "type": "country_area",
+      "parents": [
+        "geo.southeast_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.cambodia",
+      "label": "カンボジア",
+      "type": "country_area",
+      "parents": [
+        "geo.southeast_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.thailand",
+      "label": "タイ",
+      "type": "country_area",
+      "parents": [
+        "geo.southeast_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.myanmar",
+      "label": "ミャンマー",
+      "type": "country_area",
+      "parents": [
+        "geo.southeast_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.indonesia",
+      "label": "インドネシア地域",
+      "type": "country_area",
+      "parents": [
+        "geo.southeast_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.india",
+      "label": "インド地域",
+      "type": "historical_region",
+      "parents": [
+        "geo.south_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.bengal",
+      "label": "ベンガル地方",
+      "type": "historical_region",
+      "parents": [
+        "geo.india"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.sri_lanka",
+      "label": "スリランカ",
+      "type": "country_area",
+      "parents": [
+        "geo.south_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.transoxiana",
+      "label": "トランスオクシアナ",
+      "type": "historical_region",
+      "parents": [
+        "geo.central_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.central_steppe",
+      "label": "中央アジア草原",
+      "type": "historical_region",
+      "parents": [
+        "geo.central_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.mesopotamia",
+      "label": "メソポタミア",
+      "type": "historical_region",
+      "parents": [
+        "geo.west_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.anatolia",
+      "label": "アナトリア",
+      "type": "historical_region",
+      "parents": [
+        "geo.west_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.iran_plateau",
+      "label": "イラン高原",
+      "type": "historical_region",
+      "parents": [
+        "geo.west_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.arabia",
+      "label": "アラビア半島",
+      "type": "historical_region",
+      "parents": [
+        "geo.west_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.levant",
+      "label": "レヴァント",
+      "type": "historical_region",
+      "parents": [
+        "geo.west_asia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.egypt",
+      "label": "エジプト",
+      "type": "country_area",
+      "parents": [
+        "geo.north_africa"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.maghreb",
+      "label": "マグリブ",
+      "type": "historical_region",
+      "parents": [
+        "geo.north_africa"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.sahel",
+      "label": "サヘル",
+      "type": "historical_region",
+      "parents": [
+        "geo.west_africa"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.guinea_coast",
+      "label": "ギニア湾沿岸",
+      "type": "historical_region",
+      "parents": [
+        "geo.west_africa"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.congo_basin",
+      "label": "コンゴ盆地",
+      "type": "historical_region",
+      "parents": [
+        "geo.central_africa"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.ethiopian_highlands",
+      "label": "エチオピア高原",
+      "type": "historical_region",
+      "parents": [
+        "geo.east_africa"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.swahili_coast",
+      "label": "スワヒリ海岸",
+      "type": "historical_region",
+      "parents": [
+        "geo.east_africa"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.southern_africa_area",
+      "label": "南部アフリカ地域",
+      "type": "historical_region",
+      "parents": [
+        "geo.southern_africa"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.usa",
+      "label": "アメリカ合衆国地域",
+      "type": "country_area",
+      "parents": [
+        "geo.north_america"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.canada",
+      "label": "カナダ地域",
+      "type": "country_area",
+      "parents": [
+        "geo.north_america"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.mexico",
+      "label": "メキシコ",
+      "type": "country_area",
+      "parents": [
+        "geo.central_america"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.mesoamerica",
+      "label": "メソアメリカ",
+      "type": "historical_region",
+      "parents": [
+        "geo.central_america"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.cuba",
+      "label": "キューバ",
+      "type": "country_area",
+      "parents": [
+        "geo.caribbean"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.hispaniola",
+      "label": "イスパニョーラ島",
+      "type": "historical_region",
+      "parents": [
+        "geo.caribbean"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.andes",
+      "label": "アンデス地域",
+      "type": "historical_region",
+      "parents": [
+        "geo.south_america"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.brazil",
+      "label": "ブラジル地域",
+      "type": "country_area",
+      "parents": [
+        "geo.south_america"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.australia",
+      "label": "オーストラリア",
+      "type": "country_area",
+      "parents": [
+        "geo.australasia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.new_zealand",
+      "label": "ニュージーランド",
+      "type": "country_area",
+      "parents": [
+        "geo.australasia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.polynesia",
+      "label": "ポリネシア",
+      "type": "historical_region",
+      "parents": [
+        "geo.pacific_islands"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.melanesia",
+      "label": "メラネシア",
+      "type": "historical_region",
+      "parents": [
+        "geo.pacific_islands"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.micronesia",
+      "label": "ミクロネシア",
+      "type": "historical_region",
+      "parents": [
+        "geo.pacific_islands"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.normandy",
+      "label": "ノルマンディー",
+      "type": "historical_region",
+      "parents": [
+        "geo.france"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.burgundy",
+      "label": "ブルゴーニュ",
+      "type": "historical_region",
+      "parents": [
+        "geo.france"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.spain",
+      "label": "スペイン",
+      "type": "country_area",
+      "parents": [
+        "geo.iberia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.portugal",
+      "label": "ポルトガル",
+      "type": "country_area",
+      "parents": [
+        "geo.iberia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.maya_area",
+      "label": "マヤ地域",
+      "type": "historical_region",
+      "parents": [
+        "geo.mesoamerica"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.russia",
+      "label": "ロシア全域",
+      "type": "composite_region",
+      "parents": [],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.russia_europe",
+      "label": "ヨーロッパロシア",
+      "type": "historical_region",
+      "parents": [
+        "geo.east_europe",
+        "geo.russia"
+      ],
+      "aliases": [],
+      "active": true
+    },
+    {
+      "code": "geo.siberia",
+      "label": "シベリア",
+      "type": "historical_region",
+      "parents": [
+        "geo.north_asia",
+        "geo.russia"
+      ],
+      "aliases": [],
+      "active": true
+    }
+  ]
+}

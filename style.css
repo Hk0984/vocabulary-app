@@ -1369,6 +1369,35 @@ main button:hover:not(:disabled) {
     width: 100%;
 }
 
+#historyThirty[hidden],
+#historyFilters[hidden],
+#vocabularyMeaning[hidden],
+#vocabularyFormat[hidden],
+#vocabularyRange[hidden] { display: none !important; }
+
+.history-filter-panel details {
+    margin: 8px 0;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    overflow-wrap: anywhere;
+}
+.history-filter-panel summary { cursor: pointer; }
+.history-filter-panel label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+}
+.history-filter-panel input[type="checkbox"] {
+    width: auto;
+    flex-shrink: 0;
+    min-width: 20px;
+    min-height: 20px;
+}
+.history-filter-controls { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.history-region-node { margin-left: 8px; }
+
 .history-header .study-controls {
     grid-template-columns: 1fr;
 }

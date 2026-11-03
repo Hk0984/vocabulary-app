@@ -1,0 +1,6 @@
+{
+  "years": [[-3501,"prehistoric","bce_36"],[-3500,"ancient","bce_35"],[-221,"ancient","bce_03"],[-1,"ancient","bce_01"],[1,"ancient","ce_01"],[500,"ancient","ce_05"],[501,"medieval","ce_06"],[1500,"medieval","ce_15"],[1501,"early_modern","ce_16"],[1800,"early_modern","ce_18"],[1801,"modern","ce_19"],[1918,"modern","ce_20"],[1919,"contemporary","ce_20"],[10001,"contemporary","ce_101"]],
+  "invalidRanges": ["0..1","-1..1","01..2","+1..2","1.5..2","2..1","1..2;2..3","1..2;","１００..２００","100001..100001","-0..-1"],
+  "descendants": [["geo.france","geo.normandy",true],["geo.normandy","geo.france",false],["geo.europe","geo.siberia",false],["geo.russia","geo.siberia",true],["geo.russia","geo.russia_europe",true],["geo.mesoamerica","geo.maya_area",true]],
+  "intersection": {"period_codes":"early_modern;modern","century_codes":"ce_18;ce_19","area_codes":"geo.normandy","time_ranges":"1750..1750;1850..1850"}
+}
