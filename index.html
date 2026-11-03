@@ -24,7 +24,7 @@
     <div class="header-right">
 
         <nav id="mainNav" aria-label="メインナビゲーション" style="display:none;">
-            <button onclick="startHistoryQuiz()" aria-label="歴史問題を始める">歴史</button>
+            <button onclick="openHistorySettings()" aria-label="世界史一問一答の学習設定">歴史</button>
             <button onclick="showPage('sheetPage')">学習</button>
             <button onclick="showPage('progressPage')">学習状況</button>
             <button onclick="showPage('accountPage')">アカウント</button>
@@ -62,7 +62,7 @@
                 次回も続きから学習できます。
             </p>
 
-            <button class="secondary-button" onclick="startHistoryQuiz()">歴史問題を解く</button>
+            <button class="secondary-button" onclick="openHistorySettings()">世界史一問一答を学ぶ</button>
 
             <div class="trial-notice">
                 <strong>ログインせずに試す場合</strong>
@@ -254,7 +254,15 @@
             </div>
 
 
-            <div class="setting-section">
+            <section id="historyFilters" class="setting-section history-filter-panel" hidden>
+                <h3>世界史の分類</h3>
+                <p>項目内はOR、分類軸の間はANDです。0件選択は全範囲です。</p>
+                <p>全地域をチェックしても全世界・未分類は含みません。</p>
+                <p>時代は全地域共通の学習用区分です。紀元前3500年は文字成立の普遍的な境界ではありません。</p>
+                <div id="historyFilterOptions"></div>
+            </section>
+
+            <div id="vocabularyMeaning" class="setting-section">
 
                 <h3>意味の表示</h3>
 
@@ -283,7 +291,7 @@
             </div>
 
 
-            <div class="setting-section">
+            <div id="vocabularyFormat" class="setting-section">
 
                 <h3>出題形式</h3>
 
@@ -318,7 +326,7 @@
             </div>
 
 
-            <div class="setting-section">
+            <div id="vocabularyRange" class="setting-section">
     <h3>出題範囲</h3>
 
     <div class="setting-options">
@@ -396,6 +404,15 @@
                     >
                         <strong>20問</strong>
                     </button>
+
+                    <button
+                        class="setting-option"
+                        data-setting="count"
+                        data-value="30"
+                        id="historyThirty"
+                        hidden disabled
+                        onclick="selectSetting(this)"
+                    ><strong>30問</strong></button>
 
                     <button
                         class="setting-option"
@@ -722,17 +739,7 @@
         </div>
     </div>
     <div id="historyStatus" class="history-status" role="status" aria-live="polite"></div>
-    <details class="history-settings">
-        <summary>問題数を変更（次の学習から適用）</summary>
-        <label for="historyCount">出題数</label>
-        <select id="historyCount">
-            <option value="10">10問</option>
-            <option value="20">20問</option>
-            <option value="30">30問</option>
-            <option value="50">50問</option>
-            <option value="unlimited">すべて</option>
-        </select>
-    </details>
+    <button class="change-sheet-button" onclick="openHistorySettings()">学習設定を変更</button>
     <div id="historyQuiz" style="display:none;">
         <div class="session-info" aria-label="世界史の学習状況">
             <span id="historyProgress"></span>
@@ -753,7 +760,7 @@
     <p id="historySummary" class="history-result" role="status"></p>
     <p id="historySaveStatus" role="status"></p>
     <div id="historyEndActions" class="history-actions" style="display:none;">
-        <button class="secondary-button" onclick="startHistoryQuiz()">もう一度解く</button>
+        <button class="secondary-button" onclick="openHistorySettings()">設定してもう一度解く</button>
         <button class="back-button" onclick="showPage('homePage')">学習トップへ戻る</button>
     </div>
 </section>
@@ -763,6 +770,7 @@
 
 <!-- JavaScript -->
 <script src="history-config.js"></script>
+<script src="history-classification.js"></script>
 <script src="history_questions.js"></script>
 <script src="script.js"></script>
 <script src="pwa.js"></script>

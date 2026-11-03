@@ -6,6 +6,8 @@ import os
 import asyncio
 import logging
 import uuid
+import csv
+import io
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -26,9 +28,11 @@ from public_questions import PUBLIC_HEADERS, publish_drafts_safely
 from public_questions import repair_published_rows, revoke_public_rows
 from instance_lock import AlreadyRunningError, acquire_instance_lock, release_instance_lock
 
-load_dotenv(Path(__file__).with_name(".env"))
+from history_classification import MANAGEMENT_HEADERS, validate as validate_classification
+from history_data import validate_table
+from history_environment import active_profile, require_approved, ApprovalRequiredError
 
-SHEET_HEADERS = HEADERS + ["status", "batch_id", "created_at"]
+SHEET_HEADERS = MANAGEMENT_HEADERS.copy()
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 # Serialize complete read/write workflows, including private-source updates.
 _SHEET_MUTATION_LOCK = asyncio.Lock()
@@ -41,6 +45,8 @@ def sheets_client():
 
 
 def sheet_config() -> tuple[str, str]:
+    profile=active_profile()
+    if profile:return profile['management_spreadsheet_id'],profile['management_sheet_name']
     spreadsheet_id = os.environ.get("GOOGLE_SHEETS_SPREADSHEET_ID")
     if not spreadsheet_id:
         raise RuntimeError("GOOGLE_SHEETS_SPREADSHEET_ID が設定されていません。")
@@ -49,6 +55,8 @@ def sheet_config() -> tuple[str, str]:
 
 
 def public_sheet_config() -> tuple[str, str]:
+    profile=active_profile()
+    if profile:return profile['public_spreadsheet_id'],profile['public_sheet_name']
     spreadsheet_id = os.environ.get("PUBLIC_QUESTIONS_SPREADSHEET_ID", "").strip()
     title = os.environ.get("PUBLIC_QUESTIONS_SHEET_NAME", "history_questions").strip()
     if not spreadsheet_id or not title:
@@ -61,22 +69,25 @@ def public_sheet_config() -> tuple[str, str]:
 def read_public_rows():
     spreadsheet_id, title = public_sheet_config()
     result = sheets_client().values().get(
-        spreadsheetId=spreadsheet_id, range=f"'{title}'!A:I"
+        spreadsheetId=spreadsheet_id, range="'"+title.replace("'","''")+"'"
     ).execute()
     values = result.get("values", [])
-    if not values or values[0] != PUBLIC_HEADERS:
-        raise RuntimeError("公開専用シートの1行目に所定の9列ヘッダーを設定してください。")
-    return [
-        dict(zip(PUBLIC_HEADERS, row + [""] * (len(PUBLIC_HEADERS) - len(row))))
-        for row in values[1:]
-    ]
+    try:
+        profile=active_profile()
+        return validate_table(values,id_prefix=profile['id_prefix'] if profile else None)
+    except ValueError as error:
+        raise RuntimeError('公開シート全使用範囲のヘッダ・データが不正です。書込みを停止します。') from error
 
 
 def append_public_rows(rows: list[dict[str, str]]) -> None:
+    profile=active_profile()
+    validate_table([PUBLIC_HEADERS]+[[row[k]for k in PUBLIC_HEADERS]for row in rows],id_prefix=profile['id_prefix']if profile else None)
+    require_approved(rows,profile)
+    read_public_rows()  # Fail before every write on legacy/mixed headers.
     spreadsheet_id, title = public_sheet_config()
     values = [[row[key] for key in PUBLIC_HEADERS] for row in rows]
     sheets_client().values().append(
-        spreadsheetId=spreadsheet_id, range=f"'{title}'!A:I", valueInputOption="RAW",
+        spreadsheetId=spreadsheet_id, range=f"'{title}'!A:M", valueInputOption="RAW",
         insertDataOption="INSERT_ROWS", body={"values": values},
     ).execute()
 
@@ -84,24 +95,32 @@ def append_public_rows(rows: list[dict[str, str]]) -> None:
 def clear_public_rows(row_numbers: list[int]) -> None:
     if not row_numbers:
         return
+    read_public_rows()
     spreadsheet_id, title = public_sheet_config()
     sheets_client().values().batchClear(
         spreadsheetId=spreadsheet_id,
-        body={"ranges": [f"'{title}'!A{number}:I{number}" for number in row_numbers]},
+        body={"ranges": [f"'{title}'!A{number}:M{number}" for number in row_numbers]},
     ).execute()
 
 
 def read_rows():
     spreadsheet_id, title = sheet_config()
-    result = sheets_client().values().get(spreadsheetId=spreadsheet_id, range=f"'{title}'!A:L").execute()
+    result = sheets_client().values().get(spreadsheetId=spreadsheet_id, range="'"+title.replace("'","''")+"'").execute()
     values = result.get("values", [])
-    if not values or values[0] != SHEET_HEADERS:
-        raise RuntimeError(f"シート '{title}' の1行目に仕様の列ヘッダーを設定してください。")
-    return [dict(zip(SHEET_HEADERS, row + [""] * (len(SHEET_HEADERS) - len(row)))) for row in values[1:]]
+    try:
+        profile=active_profile()
+        return validate_table(values,True,profile['id_prefix'] if profile else None)
+    except ValueError as error:
+        raise RuntimeError('管理シート全使用範囲のヘッダ・データが不正です。書込みを停止します。') from error
 
 
 def append_batch(rows: list[dict[str, str]], batch_id: str | None = None) -> str:
     existing = read_rows()
+    profile=active_profile()
+    validate_table([PUBLIC_HEADERS]+[[row[k] for k in PUBLIC_HEADERS]for row in rows],id_prefix=profile['id_prefix'] if profile else None)
+    if profile:
+        public_ids={r['id']for r in read_public_rows() if r['id']}
+        if any(row['id'] in public_ids for row in rows):raise CsvValidationError('公開先に既存の問題IDがあります。照合してから再登録してください。')
     known_ids = {row["id"] for row in existing}
     collisions = sorted({row["id"] for row in rows} & known_ids)
     if collisions:
@@ -112,9 +131,10 @@ def append_batch(rows: list[dict[str, str]], batch_id: str | None = None) -> str
     spreadsheet_id, title = sheet_config()
 
     def append_rows(target_rows):
+        read_rows()
         values = [[row[key] for key in SHEET_HEADERS] for row in target_rows]
         sheets_client().values().append(
-            spreadsheetId=spreadsheet_id, range=f"'{title}'!A:L", valueInputOption="RAW",
+            spreadsheetId=spreadsheet_id, range=f"'{title}'!A:P", valueInputOption="RAW",
             insertDataOption="INSERT_ROWS", body={"values": values},
         ).execute()
 
@@ -123,6 +143,7 @@ def append_batch(rows: list[dict[str, str]], batch_id: str | None = None) -> str
 
 
 def update_status(row_numbers: list[int], status: str) -> None:
+    read_rows()
     spreadsheet_id, title = sheet_config()
     requests = [{"range": f"'{title}'!J{number}:J{number}", "values": [[status]]} for number in row_numbers]
     sheets_client().values().batchUpdate(
@@ -253,13 +274,17 @@ async def import_csv(interaction: discord.Interaction, file: discord.Attachment)
             if not file.filename.lower().endswith(".csv") or file.size > 1_000_000:
                 raise CsvValidationError("CSVファイル（1MB以下）を添付してください。")
             csv_bytes = await file.read()
-            rows = await asyncio.to_thread(parse_csv, csv_bytes)
+            if active_profile() and next(csv.reader(io.StringIO(csv_bytes.decode('utf-8-sig'),newline='')),None)!=HEADERS:
+                raise CsvValidationError('新環境には正確な13列CSVだけを取り込めます。旧CSVは候補変換ツールでレビューしてください。')
+            classification_warnings = []
+            rows = await asyncio.to_thread(parse_csv, csv_bytes, classification_warnings)
             question_ids = [row["id"] for row in rows]
             batch_id = uuid.uuid4().hex[:12]
             await audit(interaction, "csv_import", True, batch_id, question_ids)
             await asyncio.to_thread(append_batch, rows, batch_id)
             await audit(interaction, "draft_register", True, batch_id, question_ids)
-            await interaction.followup.send(f"{len(rows)}問をdraft登録しました。batch_id: `{batch_id}`", ephemeral=True)
+            warning_text = '\n'.join(classification_warnings[:20])
+            await interaction.followup.send(f"{len(rows)}問をdraft登録しました。batch_id: `{batch_id}`\n{warning_text}", ephemeral=True)
         except ReconciliationError:
             question_ids = [row["id"] for row in rows]
             await audit_failure(interaction, "draft_register", batch_id, question_ids)
@@ -314,7 +339,9 @@ async def check_batch(interaction: discord.Interaction, batch_id: str):
             return
         chunks, current = [], ""
         for row in rows:
+            warnings = validate_classification(row)['warnings']
             item = f"**{escape_discord_text(row['id'])}** [{escape_discord_text(row['status'])}] {escape_discord_text(row['question'])}\n" + "\n".join(f"{i}. {escape_discord_text(row[f'choice{i}'])}" for i in range(1, 5)) + f"\n正答: {escape_discord_text(row['answer'])} / {escape_discord_text(row['explanation'])}\n\n"
+            item += '分類: ' + escape_discord_text(' / '.join(row.get(k,'') for k in ['period_codes','century_codes','area_codes','time_ranges'])) + '\n' + '\n'.join(warnings) + '\n'
             current += item
         await send_pages(interaction, f"{len(rows)}問\n{current}")
     except Exception:
@@ -343,6 +370,7 @@ async def publish_batch(interaction: discord.Interaction, batch_id: str):
                 await send_pages(interaction, "公開対象のdraftがありません。")
                 return
             draft_rows = [row for _, row in selected if row["status"] == "draft"]
+            await asyncio.to_thread(require_approved,draft_rows,active_profile())
             await asyncio.to_thread(
                 publish_drafts_safely,
                 draft_rows,
@@ -355,6 +383,9 @@ async def publish_batch(interaction: discord.Interaction, batch_id: str):
             )
             await audit(interaction, "publish", True, batch_id, [row["id"] for _, row in selected if row["status"] == "draft"])
             await send_pages(interaction, f"{len(targets)}問を公開しました。")
+        except ApprovalRequiredError:
+            await audit_failure(interaction,'publish',batch_id,question_ids)
+            await send_pages(interaction,'未承認、内容変更、または承認記録の不備があるため公開を中止しました。レビューを確認してください。')
         except ReconciliationError:
             await audit_failure(interaction, "publish", batch_id, question_ids)
             await report_reconciliation_error(interaction, batch_id)
@@ -385,11 +416,15 @@ async def repair_publish_batch(interaction: discord.Interaction, batch_id: str):
                 await audit_failure(interaction, "publication_repair", batch_id)
                 await send_pages(interaction, "指定batchに補完対象のpublished問題がありません。")
                 return
+            await asyncio.to_thread(require_approved,published_rows,active_profile())
             count = await asyncio.to_thread(
                 repair_published_rows, published_rows, read_public_rows, append_public_rows
             )
             await audit(interaction, "publication_repair", True, batch_id, question_ids)
             await send_pages(interaction, f"公開先で{count}問を確認・補完しました。管理用statusは変更していません。")
+        except ApprovalRequiredError:
+            await audit_failure(interaction,'publication_repair',batch_id,question_ids)
+            await send_pages(interaction,'承認記録と現在の問題内容が一致しないため、公開先の補完を中止しました。')
         except ReconciliationError:
             await audit_failure(interaction, "publication_repair", batch_id, question_ids)
             await report_reconciliation_error(interaction, batch_id)
@@ -441,6 +476,7 @@ async def delete_batch(interaction: discord.Interaction, batch_id: str | None = 
             await asyncio.to_thread(revoke_public_rows, selected_ids, read_public_rows, clear_public_rows)
 
             def delete_rows(row_numbers):
+                read_rows()
                 sheets_client().batchUpdate(
                     spreadsheetId=spreadsheet_id,
                     body={"requests": [{"deleteDimension": {"range": {"sheetId": sheet_id, "dimension": "ROWS", "startIndex": number - 1, "endIndex": number}}} for number in sorted(row_numbers, reverse=True)]},
@@ -470,6 +506,7 @@ def _sheet_id(title: str) -> int:
 
 
 if __name__ == "__main__":
+    load_dotenv(Path(__file__).with_name(".env"))
     token = os.environ.get("DISCORD_BOT_TOKEN")
     if not token:
         raise SystemExit("DISCORD_BOT_TOKEN を bot/.env に設定してください。")

@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from public_questions import revoke_public_rows, make_public_rows
 from sheets_write import ReconciliationError
 import history_bot
-from csv_validation import parse_csv, HEADERS
+from csv_validation import parse_csv, BASE_HEADERS as HEADERS
 
 
 class PublicRevocationTests(unittest.TestCase):
@@ -95,7 +95,8 @@ class PublicRevocationTests(unittest.TestCase):
 
     def test_empty_explanation_can_be_published_but_published_and_deleted_cannot_be_drafts(self):
         row = dict(id="q", source_id="source", question="Q", choice1="A", choice2="B",
-                   choice3="C", choice4="D", answer="1", explanation="", status="draft")
+                   choice3="C", choice4="D", answer="1", explanation="", status="draft",
+                   period_codes='unclassified', century_codes='', area_codes='unclassified', time_ranges='')
         self.assertEqual(make_public_rows([row])[0]["explanation"], "")
         for status in ["published", "deleted"]:
             with self.assertRaises(ReconciliationError):

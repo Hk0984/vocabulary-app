@@ -4,6 +4,7 @@
     "workflow_dispatch": {
       "inputs": {
         "deploy": { "description": "Replace the existing production Pages site", "type": "boolean", "default": false },
+        "history_environment": { "description": "History data environment (rebuild requires reviewed public config)", "type": "choice", "options": ["legacy", "rebuild_v1"], "default": "legacy" },
         "confirmation": { "description": "For deployment only: type REPLACE_PRODUCTION", "type": "string", "default": "" }
       }
     }
@@ -20,7 +21,7 @@
         { "uses": "actions/setup-node@v6", "with": { "node-version": "24" } },
         { "name": "Verify Pages source before approved deployment", "if": "github.ref == 'refs/heads/main' && inputs.deploy == true && inputs.confirmation == 'REPLACE_PRODUCTION'", "env": { "GITHUB_TOKEN": "${{ github.token }}" }, "run": "node scripts/check-pages-release.mjs" },
         { "name": "Verify packaging and cache behavior", "run": "node --test tests/web-build.test.mjs tests/service-worker.test.mjs" },
-        { "name": "Build allowlisted web assets", "run": "node scripts/build-web.mjs" },
+        { "name": "Build allowlisted web assets", "env": { "HISTORY_ENVIRONMENT": "${{ inputs.history_environment }}" }, "run": "case \"$HISTORY_ENVIRONMENT\" in rebuild_v1) node scripts/build-web.mjs --history-public-config config/history-public-rebuild.json ;; legacy) node scripts/build-web.mjs ;; *) echo 'Unknown history environment'; exit 1 ;; esac" },
         { "name": "Upload review artifact (no deployment)", "uses": "actions/upload-artifact@v4", "with": { "name": "web-review-${{ github.run_id }}-${{ github.run_attempt }}", "path": "dist/web", "if-no-files-found": "error", "retention-days": 7 } },
         { "name": "Prepare approved production artifact", "if": "github.ref == 'refs/heads/main' && inputs.deploy == true && inputs.confirmation == 'REPLACE_PRODUCTION'", "uses": "actions/upload-pages-artifact@v4", "with": { "name": "github-pages-${{ github.run_id }}-${{ github.run_attempt }}", "path": "dist/web" } }
       ]

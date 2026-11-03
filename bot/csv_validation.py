@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import csv
 import io
+from history_classification import BASE_HEADERS, HEADERS, defaults, validate
 
-HEADERS = ["id", "source_id", "question", "choice1", "choice2", "choice3", "choice4", "answer", "explanation"]
 MAX_CELL_LENGTHS = {
     "id": 128,
     "source_id": 128,
@@ -16,6 +16,10 @@ MAX_CELL_LENGTHS = {
     "choice4": 1000,
     "answer": 1,
     "explanation": 10000,
+    "period_codes": 256,
+    "century_codes": 24000,
+    "area_codes": 24000,
+    "time_ranges": 2048,
 }
 
 
@@ -23,11 +27,11 @@ class CsvValidationError(ValueError):
     pass
 
 
-def parse_csv(data: bytes) -> list[dict[str, str]]:
+def parse_csv(data: bytes, warnings: list[str] | None = None) -> list[dict[str, str]]:
     try:
         text = data.decode("utf-8-sig", errors="strict")
         reader = csv.DictReader(io.StringIO(text, newline=""), strict=True)
-        if reader.fieldnames != HEADERS:
+        if reader.fieldnames not in (BASE_HEADERS, HEADERS):
             raise CsvValidationError("CSVの列名または列順が仕様と一致しません。")
         rows = list(reader)
     except (UnicodeDecodeError, csv.Error) as exc:
@@ -40,18 +44,27 @@ def parse_csv(data: bytes) -> list[dict[str, str]]:
     for line, row in enumerate(rows, start=2):
         if None in row or any(value is None for value in row.values()):
             raise CsvValidationError(f"{line}行目: 列数が不正です。")
-        row = {key: value.strip() for key, value in row.items()}
+        # Preserve imported question text, choices and string IDs byte-for-character.
+        row = dict(row)
+        if reader.fieldnames == BASE_HEADERS:
+            row = defaults(row)
         for key in HEADERS:
-            if not row[key] and key != "explanation":
+            if not row[key].strip() and key not in {"explanation", "century_codes", "time_ranges"}:
                 raise CsvValidationError(f"{line}行目: {key} が空欄です。")
             if len(row[key]) > MAX_CELL_LENGTHS[key]:
                 raise CsvValidationError(f"{line}行目: {key} は最大{MAX_CELL_LENGTHS[key]}文字です。")
         if row["answer"] not in {"1", "2", "3", "4"}:
             raise CsvValidationError(f"{line}行目: answer は1〜4で指定してください。")
-        if len({row[f"choice{i}"] for i in range(1, 5)}) != 4:
+        if len({row[f"choice{i}"].strip() for i in range(1, 5)}) != 4:
             raise CsvValidationError(f"{line}行目: 選択肢はすべて異なる必要があります。")
         if row["id"] in seen:
             raise CsvValidationError(f"{line}行目: CSV内で問題ID {row['id']} が重複しています。")
         seen.add(row["id"])
+        try:
+            classification = validate(row)
+        except ValueError as error:
+            raise CsvValidationError(f'{line}行目: {error}') from error
+        if warnings is not None:
+            warnings.extend(f'{line}行目: {message}' for message in classification['warnings'])
         validated.append(row)
     return validated

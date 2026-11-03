@@ -283,6 +283,9 @@ test('actual client transactions preserve concurrent counts, sibling records and
   await first.recordHistoryAnswer({id:'7', question:'問題', answer:'1', choice1:'正解'}, true);
   const historyRef = firstDb.collection('users').doc('alice').collection('progress').doc('history_questions');
   assert.equal((await historyRef.get()).data().history_7.total, 1);
+  await first.recordHistoryAnswer({id:'hv1_rebuild1_7',question:'新環境問題',answer:'1',choice1:'正解'},false);
+  assert.equal((await historyRef.get()).data().history_hv1_rebuild1_7.total,1);
+  assert.equal((await historyRef.get()).data().history_7.total,1);
   assert.equal((await ref.get()).data().id_7.total, 9);
 });
 

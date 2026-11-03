@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from csv_validation import CsvValidationError, HEADERS, MAX_CELL_LENGTHS, parse_csv
+from csv_validation import CsvValidationError, BASE_HEADERS as HEADERS, MAX_CELL_LENGTHS, parse_csv
 
 
 def csv_bytes(rows, bom=False):

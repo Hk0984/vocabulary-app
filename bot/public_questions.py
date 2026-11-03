@@ -7,29 +7,31 @@ from threading import Lock
 from typing import Any
 
 from sheets_write import ReconciliationError, is_ambiguous_write_error, delete_with_reconciliation
+from history_classification import HEADERS, validate
 
-PUBLIC_HEADERS = [
-    "id", "source_id", "question", "choice1", "choice2", "choice3", "choice4",
-    "answer", "explanation",
-]
+PUBLIC_HEADERS = HEADERS.copy()
 _PUBLIC_PUBLISH_LOCK = Lock()
 
 
 def make_public_rows(
     rows: list[dict[str, Any]], *, expected_status: str = "draft"
 ) -> list[dict[str, str]]:
-    """Validate source rows and return only the nine public data fields."""
+    """Validate source rows and return only the thirteen public data fields."""
     result = []
     for row in rows:
         if row.get("status") != expected_status:
             raise ReconciliationError(f"公開対象に{expected_status}以外の状態が含まれています。")
-        item = {key: str(row.get(key, "")).strip() for key in PUBLIC_HEADERS}
-        if any(not item[key] for key in PUBLIC_HEADERS if key != "explanation"):
+        item = {key: str(row.get(key, "")) for key in PUBLIC_HEADERS}
+        if any(not item[key] for key in PUBLIC_HEADERS if key not in {"explanation","century_codes","time_ranges"}):
             raise ReconciliationError("公開対象に必須項目の欠落があります。")
         if item["answer"] not in {"1", "2", "3", "4"}:
             raise ReconciliationError("公開対象の正答番号が不正です。")
-        if len({item[f"choice{i}"] for i in range(1, 5)}) != 4:
+        if len({item[f"choice{i}"].strip() for i in range(1, 5)}) != 4:
             raise ReconciliationError("公開対象の選択肢が不正です。")
+        try:
+            validate(item)
+        except ValueError as error:
+            raise ReconciliationError('公開対象の分類が不正です。') from error
         result.append(item)
     if len({row["id"] for row in result}) != len(result):
         raise ReconciliationError("公開対象内で問題IDが重複しています。")
@@ -142,7 +144,7 @@ def revoke_public_rows(question_ids, read_rows, clear_rows):
     """Remove public cells first; verify absence before deleting private source rows.
 
     read_rows must retain blank rows so spreadsheet row numbers stay correct.
-    Clearing A:I preserves row positions and headers, including after a timeout.
+    Clearing A:M preserves row positions and headers, including after a timeout.
     """
     with _PUBLIC_PUBLISH_LOCK:
         targets = {question_id: "" for question_id in question_ids}

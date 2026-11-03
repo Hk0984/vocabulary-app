@@ -13,6 +13,7 @@ def source_row(question_id="q1"):
         "choice1": "選択肢1", "choice2": "選択肢2", "choice3": "選択肢3", "choice4": "選択肢4",
         "answer": "2", "explanation": "解説", "status": "draft", "batch_id": "b1",
         "created_at": "2026-01-01T00:00:00Z",
+        "period_codes": "unclassified", "century_codes": "", "area_codes": "unclassified", "time_ranges": "",
     }
 
 
@@ -37,7 +38,7 @@ class PublicQuestionsTests(unittest.TestCase):
     def publish(self, source):
         return publish_drafts_safely(source, self.read, self.append, self.mark_published)
 
-    def test_transfers_only_nine_columns_then_updates_source(self):
+    def test_transfers_only_thirteen_columns_then_updates_source(self):
         self.assertEqual(self.publish([source_row()]), 1)
         self.assertEqual(list(self.rows[0]), PUBLIC_HEADERS)
         self.assertEqual(self.appended, [["q1"]])

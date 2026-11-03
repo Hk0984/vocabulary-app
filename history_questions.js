@@ -8,24 +8,31 @@
     ];
 
     function hasExpectedHeaders(values) {
+        const current = [...HEADERS, 'period_codes', 'century_codes', 'area_codes', 'time_ranges'];
         return Array.isArray(values) && values.length > 0 && Array.isArray(values[0]) &&
-            values[0].length === HEADERS.length &&
-            HEADERS.every((header, index) => String(values[0][index] || "").trim() === header);
+            [HEADERS, current].some(headers => values[0].length === headers.length &&
+            headers.every((header, index) => values[0][index] === header));
     }
 
     function parseHistoryQuestionValues(values) {
         if (!hasExpectedHeaders(values) || values.length < 2) return [];
 
         const questions = [];
+        const headers = values[0];
         const seen = new Set();
         for (const sourceRow of values.slice(1)) {
             if (!Array.isArray(sourceRow)) continue;
             if (sourceRow.some(value => value != null && !["string", "number"].includes(typeof value))) continue;
-            const row = Object.fromEntries(HEADERS.map((header, index) => [header, String(sourceRow[index] ?? "").trim()]));
-            if (sourceRow.length > HEADERS.length || HEADERS.some(header => header !== "explanation" && !row[header])) continue;
+            let row = Object.fromEntries(headers.map((header, index) => [header, String(sourceRow[index] ?? "")]));
+            if (sourceRow.length > headers.length || HEADERS.some(header => header !== "explanation" && !row[header].trim())) continue;
             if (!/^[1-4]$/.test(row.answer)) continue;
-            if (new Set([row.choice1, row.choice2, row.choice3, row.choice4]).size !== 4) continue;
+            if (new Set([row.choice1, row.choice2, row.choice3, row.choice4].map(c=>c.trim())).size !== 4) continue;
             if (seen.has(row.id)) continue;
+            if (headers.length === 9) row = {...row,period_codes:'unclassified',century_codes:'',area_codes:'unclassified',time_ranges:''};
+            else {
+                try { root.HistoryClassification.validate(row, root.HistoryClassification.master); }
+                catch { continue; }
+            }
             seen.add(row.id);
             questions.push(row);
         }
@@ -34,6 +41,20 @@
 
     function isCorrect(question, selectedNumber) {
         return Boolean(question) && String(selectedNumber) === question.answer;
+    }
+
+    function parseDataset(values, config = {}) {
+        if (!hasExpectedHeaders(values)) throw new Error('公開問題のヘッダが不正です。');
+        if (config.requireCurrentSchema && values[0].length !== 13) throw new Error('新環境には13列の公開シートが必要です。');
+        if (config.expectedIdPrefix) {
+            if (!/^hv1_[a-z][a-z0-9_]{1,40}_$/.test(config.expectedIdPrefix)) throw new Error('新環境のID設定が不正です。');
+            for (const row of values.slice(1)) {
+                if (!Array.isArray(row) || !row.some(v=>v!==''&&v!=null)) continue;
+                const id=String(row[0]??'');
+                if (!id.startsWith(config.expectedIdPrefix) || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new Error('別環境の問題IDが混在しています。');
+            }
+        }
+        return parseHistoryQuestionValues(values);
     }
 
     function shuffled(items, random = Math.random) {
@@ -56,7 +77,7 @@
         });
     }
 
-    root.HistoryQuestionCore = { HEADERS, hasExpectedHeaders, parseHistoryQuestionValues, isCorrect, createSession };
+    root.HistoryQuestionCore = { HEADERS, hasExpectedHeaders, parseHistoryQuestionValues, parseDataset, isCorrect, createSession };
     if (typeof module !== "undefined" && module.exports) module.exports = root.HistoryQuestionCore;
 
     if (typeof document === "undefined") return;
@@ -68,6 +89,34 @@
     let requestId = 0;
 
     function element(id) { return document.getElementById(id); }
+
+    async function ensureHistoryRegions() {
+        const core = root.HistoryClassification;
+        if (!core) throw new Error('分類機能を読み込めません。画面を更新してください。');
+        if (!core.master) {
+            const response = await fetch('./history-regions.json', {cache:'no-store'});
+            if (!response.ok) throw new Error('地域マスターを読み込めません。');
+            core.setRegions(await response.json());
+        }
+        return core.master;
+    }
+
+    async function loadHistoryQuestions() {
+        await ensureHistoryRegions();
+        const config = root.HISTORY_QUESTIONS_CONFIG || {};
+        if (!config.spreadsheetId || !config.sheetName || !config.apiKey) throw new Error('問題データの接続設定が必要です');
+        const response = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + encodeURIComponent(config.spreadsheetId) +
+            '/values/' + encodeURIComponent("'" + config.sheetName + "'") + '?key=' + encodeURIComponent(config.apiKey), {cache:'no-store'});
+        if (!response.ok) throw new Error('問題を取得できませんでした。');
+        const data = await response.json();
+        if (!data || (data.values !== undefined && !Array.isArray(data.values))) throw new Error('公開問題の形式が不正です。');
+        if (!data.values?.length) {
+            if (config.requireCurrentSchema) throw new Error('新環境の公開シートに13列ヘッダを設定してください。');
+            return [];
+        }
+        if (!hasExpectedHeaders(data?.values)) throw new Error('公開問題の形式が不正です（9列または13列が必要）。');
+        return parseDataset(data.values,config);
+    }
 
     function resetHistoryQuiz() {
         requestId += 1;
@@ -103,7 +152,7 @@
         }
     }
 
-    async function startHistoryQuiz() {
+    async function startHistoryQuiz(options = {}) {
         const thisRequest = ++requestId;
         if (typeof root.showPage === "function") root.showPage("historyPage");
         element("historyQuiz").style.display = "none";
@@ -114,7 +163,7 @@
         correctCount = 0;
         element("historySummary").textContent = "";
         element("historySaveStatus").textContent = "";
-        const count = element("historyCount").value || 10;
+        const count = options.count || element("historyCount")?.value || 10;
         const config = root.HISTORY_QUESTIONS_CONFIG || {};
         if (!config.spreadsheetId || !config.sheetName || !config.apiKey) {
             setStatus("問題データの接続設定が必要です", false);
@@ -123,6 +172,15 @@
 
         setStatus("問題を読み込み中です…", false);
         try {
+            if (options.questions) {
+                questions = createSession(options.questions, count);
+                if (!questions.length) { setStatus('条件に合う問題がありません。学習設定を変更してください。', false); return; }
+                element('historyStatus').textContent = root.historySavingNotice?.() || '';
+                element('historyQuiz').style.display = '';
+                renderQuestion();
+                return;
+            }
+            if (root.HistoryClassification) await ensureHistoryRegions();
             const range = encodeURIComponent("'" + config.sheetName + "'");
             const url = "https://sheets.googleapis.com/v4/spreadsheets/" + encodeURIComponent(config.spreadsheetId) +
                 "/values/" + range + "?key=" + encodeURIComponent(config.apiKey);
@@ -136,6 +194,7 @@
             }
             const values = data.values || [];
             if (values.length === 0) {
+                if (config.requireCurrentSchema) throw new Error('新環境のヘッダがありません。');
                 setStatus("公開用の問題データはまだありません。", false);
                 return;
             }
@@ -144,7 +203,7 @@
                 return;
             }
             const sourceRowCount = values.length - 1;
-            const validQuestions = parseHistoryQuestionValues(values);
+            const validQuestions = parseDataset(values,config);
             questions = createSession(validQuestions, count);
             if (sourceRowCount === 0) {
                 setStatus("公開用の問題データはまだありません。", false);
@@ -250,4 +309,6 @@
     root.startHistoryQuiz = startHistoryQuiz;
     root.nextHistoryQuestion = nextHistoryQuestion;
     root.resetHistoryQuiz = resetHistoryQuiz;
+    root.loadHistoryQuestions = loadHistoryQuestions;
+    root.ensureHistoryRegions = ensureHistoryRegions;
 })(typeof window !== "undefined" ? window : globalThis);

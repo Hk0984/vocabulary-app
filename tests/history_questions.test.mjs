@@ -54,8 +54,9 @@ test('history layout shares the study header and session bar, with collapsed set
     const history = html.slice(html.indexOf('<section id="historyPage"'));
     assert.match(history, /class="current-sheet history-header"/);
     assert.match(history, /class="session-info"[^>]*>[\s\S]*id="historyProgress"[\s\S]*id="historyAccuracy"/);
-    assert.match(history, /<details class="history-settings">[\s\S]*<label for="historyCount">/);
-    assert.doesNotMatch(history, /<details[^>]*\bopen\b/);
+    assert.match(history, /onclick="openHistorySettings\(\)"/);
+    assert.match(html, /id="historyFilters"/);
+    assert.doesNotMatch(history, /id="historyCount"/);
     assert.match(history, /id="historyExplanation"[^>]*\bhidden/);
     assert.match(history, /id="historyQuestion" class="quiz-question"/);
     assert.match(styles, /\.history-explanation p\s*\{[^}]*white-space: pre-wrap/);
@@ -104,7 +105,7 @@ test('multiline explanation is literal text after answering and is cleared for t
 });
 
 test('history entry and quiz reuse the shared question and choice styles', () => {
-    assert.match(html, /aria-label="歴史問題を始める">歴史<\/button>/);
+    assert.match(html, /aria-label="世界史一問一答の学習設定">歴史<\/button>/);
     assert.match(html, /class="question-box history-question"/);
     assert.match(html, /id="historyEndActions"/);
     assert.match(clientCode, /button\.className = "choice history-choice"/);

@@ -1,5 +1,9 @@
 # vocabulary-app
 
+現在の世界史方針は **新しい別Sheets環境での再構築**です。[docs/HISTORY_REBUILD.md](docs/HISTORY_REBUILD.md) に初期化・候補化・承認・新旧切替と復旧をまとめています。旧430問の管理シート移行は必須ではありません。
+
+世界史分類v1のローカル実装・13列移行準備は [docs/HISTORY_V1_MIGRATION.md](docs/HISTORY_V1_MIGRATION.md) を参照してください。Sheets移行・Bot再起動・公開は別途承認後です。
+
 既存URLを更新する公開準備・成果物の許可リスト・公開後の検証手順は [docs/WEB_RELEASE.md](docs/WEB_RELEASE.md) を参照してください。`npm run build:web` はローカル成果物だけを作成し、デプロイしません。
 
 英単語学習と、Discord Botから公開した世界史4択問題を扱う静的Webアプリです。

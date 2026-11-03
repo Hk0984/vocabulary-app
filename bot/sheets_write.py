@@ -8,6 +8,7 @@ from typing import Any
 ROW_FIELDS = (
     "id", "source_id", "question", "choice1", "choice2", "choice3", "choice4",
     "answer", "explanation", "status", "batch_id", "created_at",
+    "period_codes", "century_codes", "area_codes", "time_ranges",
 )
 
 
