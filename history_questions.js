@@ -75,10 +75,11 @@
         currentIndex = 0;
         answered = false;
         correctCount = 0;
-        for (const id of ["historyStatus", "historyProgress", "historyQuestion", "historyChoices", "historyResult", "historySummary", "historySaveStatus"]) {
+        for (const id of ["historyStatus", "historyProgress", "historyAccuracy", "historyQuestion", "historyChoices", "historyResult", "historyExplanationText", "historySummary", "historySaveStatus"]) {
             const target = element(id);
             if (target) target.textContent = "";
         }
+        element("historyExplanation").hidden = true;
         for (const id of ["historyQuiz", "historyNext", "historyEndActions"]) {
             const target = element(id);
             if (target) target.style.display = "none";
@@ -170,8 +171,11 @@
         const question = questions[currentIndex];
         answered = false;
         element("historyProgress").textContent = (currentIndex + 1) + " / " + questions.length + " 問";
+        updateAccuracy(currentIndex);
         element("historyQuestion").textContent = question.question;
         element("historyResult").textContent = "";
+        element("historyExplanation").hidden = true;
+        element("historyExplanationText").textContent = "";
         element("historyNext").style.display = "none";
         const choices = element("historyChoices");
         choices.replaceChildren();
@@ -202,13 +206,14 @@
             else if (index === selectedIndex) button.classList.add("incorrect");
         });
         element("historyResult").textContent = (correct ? "正解です。" : "不正解です。") +
-            " 正解: " + question["choice" + question.answer] + "\n" + question.explanation;
+            " 正解: " + question["choice" + question.answer];
+        element("historyExplanationText").textContent = question.explanation;
+        element("historyExplanation").hidden = !question.explanation;
         const next = element("historyNext");
         next.textContent = currentIndex + 1 < questions.length ? "次の問題" : "結果を見る";
         next.style.display = "";
         const answeredCount = currentIndex + 1;
-        element("historySummary").textContent = "回答済み " + answeredCount + " / " + questions.length +
-            "問・正答率 " + Math.round(correctCount / answeredCount * 100) + "%";
+        updateAccuracy(answeredCount);
         if (typeof root.recordHistoryAnswer === "function") {
             const sessionId = requestId;
             Promise.resolve().then(() => {
@@ -220,6 +225,11 @@
                 if (sessionId === requestId) element("historySaveStatus").textContent = "履歴を保存できませんでした。今回の成績は画面で確認できます。";
             });
         }
+    }
+
+    function updateAccuracy(answeredCount) {
+        element("historyAccuracy").textContent = "正答率 " +
+            (answeredCount ? Math.round(correctCount / answeredCount * 100) : 0) + "%";
     }
 
     function nextHistoryQuestion() {

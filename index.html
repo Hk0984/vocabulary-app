@@ -715,31 +715,46 @@
     </section>
 
 <section id="historyPage" class="history-page" style="display:none;">
-    <div class="history-header">
-        <h2>歴史問題</h2>
-        <button class="change-sheet-button" onclick="showPage('homePage')">ホームへ戻る</button>
+    <div class="current-sheet history-header">
+        <span>出題中：<strong>世界史</strong></span>
+        <div class="study-controls">
+            <button class="change-sheet-button" onclick="showPage('homePage')">ホームへ戻る</button>
+        </div>
     </div>
     <div id="historyStatus" class="history-status" role="status" aria-live="polite"></div>
-    <label for="historyCount">問題数（次の学習から適用）</label>
-    <select id="historyCount">
-        <option value="10">10問</option>
-        <option value="20">20問</option>
-        <option value="30">30問</option>
-        <option value="50">50問</option>
-        <option value="unlimited">すべて</option>
-    </select>
+    <details class="history-settings">
+        <summary>問題数を変更（次の学習から適用）</summary>
+        <label for="historyCount">出題数</label>
+        <select id="historyCount">
+            <option value="10">10問</option>
+            <option value="20">20問</option>
+            <option value="30">30問</option>
+            <option value="50">50問</option>
+            <option value="unlimited">すべて</option>
+        </select>
+    </details>
+    <div id="historyQuiz" style="display:none;">
+        <div class="session-info" aria-label="世界史の学習状況">
+            <span id="historyProgress"></span>
+            <span id="historyAccuracy">正答率 0%</span>
+        </div>
+        <div class="question-box history-question">
+            <div class="quiz-direction">世界史 · 4択問題</div>
+            <div id="historyQuestion" class="quiz-question"></div>
+        </div>
+        <div id="historyChoices" class="history-choices"></div>
+        <div id="historyResult" class="history-result" aria-live="polite"></div>
+        <section id="historyExplanation" class="history-explanation" aria-label="解説" hidden>
+            <h3>解説</h3>
+            <p id="historyExplanationText"></p>
+        </section>
+        <button id="historyNext" class="history-next" style="display:none;" onclick="nextHistoryQuestion()">次の問題</button>
+    </div>
     <p id="historySummary" class="history-result" role="status"></p>
     <p id="historySaveStatus" role="status"></p>
     <div id="historyEndActions" class="history-actions" style="display:none;">
         <button class="secondary-button" onclick="startHistoryQuiz()">もう一度解く</button>
         <button class="back-button" onclick="showPage('homePage')">学習トップへ戻る</button>
-    </div>
-    <div id="historyQuiz" style="display:none;">
-        <p id="historyProgress" class="history-progress"></p>
-        <div id="historyQuestion" class="question-box history-question"></div>
-        <div id="historyChoices" class="history-choices"></div>
-        <div id="historyResult" class="history-result" aria-live="polite"></div>
-        <button id="historyNext" class="history-next" style="display:none;" onclick="nextHistoryQuestion()">次の問題</button>
     </div>
 </section>
 

@@ -50,6 +50,59 @@ function makeApp(config = {}) {
 const headers = ['id','source_id','question','choice1','choice2','choice3','choice4','answer','explanation'];
 const question = (id, answer = '2') => [id,'source','問題文','選択肢A','選択肢B','選択肢C','選択肢D',answer,'解説文'];
 
+test('history layout shares the study header and session bar, with collapsed settings and a separate explanation', () => {
+    const history = html.slice(html.indexOf('<section id="historyPage"'));
+    assert.match(history, /class="current-sheet history-header"/);
+    assert.match(history, /class="session-info"[^>]*>[\s\S]*id="historyProgress"[\s\S]*id="historyAccuracy"/);
+    assert.match(history, /<details class="history-settings">[\s\S]*<label for="historyCount">/);
+    assert.doesNotMatch(history, /<details[^>]*\bopen\b/);
+    assert.match(history, /id="historyExplanation"[^>]*\bhidden/);
+    assert.match(history, /id="historyQuestion" class="quiz-question"/);
+    assert.match(styles, /\.history-explanation p\s*\{[^}]*white-space: pre-wrap/);
+});
+
+test('accuracy is visible from the first question and stays correct across next, restart and account reset', async () => {
+    const {context,elements}=makeApp({spreadsheetId:'test',sheetName:'history_questions',apiKey:'test'});
+    context.fetch=async()=>({ok:true,json:async()=>({values:[headers,question('a'),question('b')]})});
+    await context.startHistoryQuiz();
+    assert.equal(elements.get('historyAccuracy').textContent,'正答率 0%');
+    elements.get('historyChoices').children[1].listeners.click();
+    assert.equal(elements.get('historyAccuracy').textContent,'正答率 100%');
+    assert.equal(elements.get('historySummary').textContent,'');
+    context.nextHistoryQuestion();
+    assert.equal(elements.get('historyAccuracy').textContent,'正答率 100%');
+    assert.match(elements.get('historyProgress').textContent,/2 \/ 2/);
+    elements.get('historyChoices').children[0].listeners.click();
+    assert.equal(elements.get('historyAccuracy').textContent,'正答率 50%');
+    assert.equal(elements.get('historyNext').textContent,'結果を見る');
+    context.nextHistoryQuestion();
+    assert.match(elements.get('historySummary').textContent,/正答率 50%/);
+    await context.startHistoryQuiz();
+    assert.equal(elements.get('historyAccuracy').textContent,'正答率 0%');
+    context.resetHistoryQuiz();
+    assert.equal(elements.get('historyAccuracy').textContent,'');
+    assert.equal(elements.get('historyExplanation').hidden,true);
+});
+
+test('multiline explanation is literal text after answering and is cleared for the next question or empty data', async () => {
+    const {context,elements}=makeApp({spreadsheetId:'test',sheetName:'history_questions',apiKey:'test'});
+    const first=question('a'),second=question('b');
+    first[8]='長文の解説\n<img src=x onerror=alert(1)>\n'+'世界史'.repeat(150);
+    second[8]='';
+    context.fetch=async()=>({ok:true,json:async()=>({values:[headers,first,second]})});
+    await context.startHistoryQuiz();
+    assert.equal(elements.get('historyExplanation').hidden,true);
+    elements.get('historyChoices').children[0].listeners.click();
+    assert.equal(elements.get('historyExplanationText').textContent,first[8]);
+    assert.equal(elements.get('historyExplanationText').children.length,0);
+    assert.equal(elements.get('historyExplanation').hidden,false);
+    context.nextHistoryQuestion();
+    assert.equal(elements.get('historyExplanationText').textContent,'');
+    assert.equal(elements.get('historyExplanation').hidden,true);
+    elements.get('historyChoices').children[1].listeners.click();
+    assert.equal(elements.get('historyExplanation').hidden,true);
+});
+
 test('history entry and quiz reuse the shared question and choice styles', () => {
     assert.match(html, /aria-label="歴史問題を始める">歴史<\/button>/);
     assert.match(html, /class="question-box history-question"/);
@@ -104,7 +157,9 @@ test('shuffled UI grades once, shows explanation and final counts, and saves his
     const correctButton = buttons.find(button => button.textContent.endsWith('選択肢B'));
     correctButton.listeners.click();
     correctButton.listeners.click();
-    assert.match(elements.get('historyResult').textContent, /正解です.*選択肢B\n解説文/);
+    assert.match(elements.get('historyResult').textContent, /正解です.*選択肢B/);
+    assert.equal(elements.get('historyExplanationText').textContent, '解説文');
+    assert.equal(elements.get('historyExplanation').hidden, false);
     assert.ok(correctButton.classList.values.has('correct'));
     context.nextHistoryQuestion();
     buttons = elements.get('historyChoices').children;
@@ -220,7 +275,7 @@ test('renders four choices, reveals correctness and explanation after selection,
     elements.get('historyChoices').children[1].listeners.click();
     assert.match(elements.get('historyResult').textContent, /正解です/);
     assert.match(elements.get('historyResult').textContent, /選択肢B/);
-    assert.match(elements.get('historyResult').textContent, /解説文/);
+    assert.match(elements.get('historyExplanationText').textContent, /解説文/);
     assert.equal(elements.get('historyChoices').children[1].disabled, true);
     assert.equal(elements.get('historyNext').style.display, '');
 
