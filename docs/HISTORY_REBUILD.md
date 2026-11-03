@@ -96,7 +96,9 @@ npm.cmd run build:web -- --out dist/rebuild-web --history-public-config dist/reb
 
 公開用JSONは公開ブックID・タブ名・ID接頭辞・13列必須フラグの4項目だけ。ブラウザ用APIキーは既存Web設定からビルド時に再利用し、管理ID・レビューJSON・認証情報は成果物へコピーしない。新公開IDが旧公開IDと同じ、空、または余分な項目がある場合はビルドを停止する。新しいローカル出力先を指定する。
 
-手動Actionsには `history_environment=legacy/rebuild_v1` を追加した。既定legacy、デプロイ既定false、mainと確認文字列のガードは維持する。rebuild_v1は固定パス `config/history-public-rebuild.json` を使う。新公開IDは記入済み。接続確認結果と未入力の旧管理用IDについては `HISTORY_V2_CONNECTION.md` を参照する。新公開先の選択・コード反映・公開は本人の別途承認まで行わない。Actions実行は今回行わない。
+手動Actionsの `history_environment` は `legacy/rebuild_v1` を選択する。既定legacy、デプロイ既定false、mainと確認文字列のガードは維持する。新環境を公開するときは `rebuild_v1` を明示選択し、Git管理済みの[公開用設定](../config/history-public-rebuild.json)を使う。新公開用IDは設定済みで、新旧接続先を分離したローカル環境設定の検証も完了している。管理用IDや承認記録の実データはGit除外のローカル設定で保持し、Gitには[環境設定のひな型](../config/history-environments.example.json)だけを含める。
+
+接続検証の記録は[実ブラウザ接続検証結果](HISTORY_V2_LIVE_WEB_RESULT.md)、公開操作は[Web公開手順](WEB_RELEASE.md)、固定旧版による復旧は[Pages移行・復旧手順](PAGES_MIGRATION_ROLLBACK.md)を参照する。Actions実行と本番公開は、それぞれ本人の別途承認を得てから行う。
 
 切替後はPWAを全タブ終了→再起動し、buildIdと新IDの問題を確認する。旧タブが残っている間は旧データの学習が続き得る。新旧の学習履歴は別IDで保持されるが、実機Safari/PWAは別途確認する。
 
