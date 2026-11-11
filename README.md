@@ -33,3 +33,7 @@ Windowsでは既存の `bot/.venv/Scripts/python.exe` と `npm.cmd` を利用で
 ログイン済みの非匿名ユーザーは既存の履歴形式で `users/{uid}/progress/history_questions` に保存します。英単語の `id_*` と区別した `history_<ID>` キーを使います。匿名・未ログインでは保存しません。現在の「学習状況」ジャンル一覧は英単語用のため、歴史の累積履歴一覧は表示しません。歴史の画面には今回の進捗と結果を表示します。
 
 Botの公開・削除は [bot/README.md](bot/README.md)、Cloudの手動接続と再現手順は [docs/CODEX_CLOUD.md](docs/CODEX_CLOUD.md)、今回の調査・検証結果は [docs/INTEGRATION_REPORT.md](docs/INTEGRATION_REPORT.md) を参照してください。
+
+属性ラベル・世界史の流れのデータ形式、CSVテンプレート、2形式の架空サンプル、検証・教材追加手順は[データ作成者向け仕様書](docs/STUDY_DATA_SPEC.md)を参照してください。
+
+世界史の流れ専用のDiscord `/flow` 管理コマンド、23列CSV、独立した管理・公開Google Sheets、接続CLI、安全な承認・復旧手順は[連携仕様書](docs/HISTORY_FLOW_SHEETS_BOT.md)を参照してください。既定は静的JSONのままで、本番シートへの接続・投入は別途承認が必要です。

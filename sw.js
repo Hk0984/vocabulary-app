@@ -6,6 +6,8 @@ const CACHE_NAME = CACHE_PREFIX + BUILD_ID;
 const APP_SHELL = [
     "./", "./index.html", "./style.css", "./script.js", "./history-config.js",
     "./history-classification.js", "./history-regions.json",
+    "./attribute-tags.js", "./history-flow.js", "./history-flow-ui.js", "./history-flow-data.json",
+    "./history-flow-config.js", "./history-flow-source.js",
     "./history_questions.js", "./pwa.js", "./manifest.json",
     "./icons/icon-192.png", "./icons/icon-512.png"
 ];

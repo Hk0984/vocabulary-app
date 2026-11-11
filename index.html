@@ -63,6 +63,7 @@
             </p>
 
             <button class="secondary-button" onclick="openHistorySettings()">世界史一問一答を学ぶ</button>
+            <button class="secondary-button" onclick="openHistoryFlow()">世界史の流れを学ぶ</button>
 
             <div class="trial-notice">
                 <strong>ログインせずに試す場合</strong>
@@ -179,6 +180,7 @@
                     ジャンルを読み込んでいます...
                 </p>
             </div>
+            <button class="sheet-button" onclick="openHistoryFlow()">世界史の流れ</button>
 
             <button
                 id="startButton"
@@ -765,6 +767,29 @@
     </div>
 </section>
 
+<section id="flowPage" class="history-page" style="display:none;">
+    <h2>世界史の流れ</h2>
+    <p>成績はこの学習セッション内だけに表示します。履歴は保存されません。</p>
+    <button class="back-button" onclick="showPage('homePage')">ホームへ戻る</button>
+    <div id="flowStatus" role="status" aria-live="polite"></div>
+    <div id="flowSettings" class="setting-section">
+        <label>出題形式 <select id="flow_type"><option value="mixed">混合</option><option value="contemporary">同時代判定</option><option value="ordering">年代順並び替え</option></select></label>
+        <p>分類は複数選択できます。未選択は全範囲です。</p>
+        <label>時代 <select id="flow_periods" multiple></select></label>
+        <label>世紀 <select id="flow_centuries" multiple></select></label>
+        <label>地域 <select id="flow_areas" multiple></select></label>
+        <label>問題数 <select id="flow_count"><option>10</option><option>20</option><option>30</option><option value="all">すべて</option></select></label>
+        <button id="flowStart" disabled>学習開始</button>
+        <details><summary>データ検証結果</summary><pre id="flowErrors"></pre></details>
+    </div>
+    <div id="flowQuiz" hidden>
+        <div id="flowQuestion" class="question-box history-question"></div>
+        <div id="flowChoices" class="history-choices"></div>
+        <p id="flowExplanation" class="history-explanation" aria-live="polite"></p>
+        <button id="flowNext" class="history-next" hidden>次の問題</button>
+    </div>
+    <div id="flowActions" hidden><button id="flowRetry">再挑戦</button><button id="flowChange">設定変更</button></div>
+</section>
 </main>
 
 
@@ -772,7 +797,12 @@
 <script src="history-config.js"></script>
 <script src="history-classification.js"></script>
 <script src="history_questions.js"></script>
+<script src="attribute-tags.js"></script>
+<script src="history-flow.js"></script>
+<script src="history-flow-config.js"></script>
+<script src="history-flow-source.js"></script>
 <script src="script.js"></script>
+<script src="history-flow-ui.js"></script>
 <script src="pwa.js"></script>
 
 </body>

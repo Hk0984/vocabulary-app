@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "questions": [
+    {
+      "id": "sample_contemporary_001",
+      "type": "contemporary",
+      "question": "【架空教材】A国の第1期と同じ時期の出来事は？",
+      "choices": [{"id":"a","text":"B国の出来事甲"},{"id":"b","text":"C国の出来事乙"},{"id":"c","text":"D国の出来事丙"},{"id":"d","text":"E国の出来事丁"}],
+      "answer": "b",
+      "explanation": "架空の設定では出来事乙が同時期です。史実の教材ではありません。",
+      "period_codes": "medieval",
+      "century_codes": "ce_12",
+      "area_codes": "global",
+      "time_ranges": "1101..1200",
+      "source": "動作説明用の架空教材"
+    },
+    {
+      "id": "sample_ordering_001",
+      "type": "ordering",
+      "question": "【架空教材】A国の出来事を古い順に並べてください。",
+      "events": [{"id":"start","text":"第1期の開始","time_ranges":"1101..1101"},{"id":"middle","text":"第1期の改革","time_ranges":"1150..1150"},{"id":"end","text":"第1期の終了","time_ranges":"1200..1200"}],
+      "answer": ["start","middle","end"],
+      "explanation": "架空の設定で開始、改革、終了の順です。",
+      "period_codes": "medieval",
+      "century_codes": "ce_12",
+      "area_codes": "global",
+      "time_ranges": "1101..1200"
+    }
+  ]
+}

@@ -38,7 +38,7 @@ before(async()=>{
     artifact=path.join(directory,'web');await buildWeb({outputDir:artifact,publicConfig});
     const release=JSON.parse(await readFile(path.join(artifact,'release.json'),'utf8'));
     const allowed=new Set([...release.files.map(f=>f.name),'release.json']);
-    assert.equal(allowed.size,13);
+    assert.equal(allowed.size,19);
     server=createServer(async(req,res)=>{
         const name=decodeURIComponent(new URL(req.url,'http://localhost').pathname).slice(1)||'index.html';
         if(req.method!=='GET'||!allowed.has(name)){res.writeHead(404).end();return;}

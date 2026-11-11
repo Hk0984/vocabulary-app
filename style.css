@@ -1495,3 +1495,8 @@ main button:hover:not(:disabled) {
 .history-action {
     margin-top: 8px;
 }
+#flowPage select { max-width: 100%; min-height: 44px; }
+#flowSettings label { display: block; margin: 1rem 0; }
+#flowChoices button { min-height: 44px; white-space: normal; overflow-wrap: anywhere; }
+#flowExplanation, #flowErrors { white-space: pre-wrap; overflow-wrap: anywhere; }
+#flowChoices > p { grid-column: 1 / -1; }
