@@ -28,3 +28,13 @@ CIでは `tests/fixtures/flow-admin.synthetic.csv` の架空61問を使用し、
 4. `tests/flow-release.browser.mjs` のliveモードで、実際の本番ファイル、61問、既存モード、Service WorkerのbuildId・キャッシュを再検証。
 
 Sheetsの問題内容・Firestore・Botプロセスは変更しません。最終のPR・コミット・Actions実行URLと公開後の結果は完了報告に記録します。
+
+## 公開後の結果
+
+- [PR #2](https://github.com/Hk0984/vocabulary-app/pull/2) をマージ。アプリ公開コミットは `c77cc829a7efe5477bd1a535c786cfbd6b1f2500`。
+- [レビュー用ビルド](https://github.com/Hk0984/vocabulary-app/actions/runs/43057962901) と [本番デプロイ](https://github.com/Hk0984/vocabulary-app/actions/runs/43058222896) が成功。Actions成果物はGitの正規化済みソースからの再生成と全バイト一致。
+- 本番配信を使う隔離ブラウザ検証4件成功。公開Sheets61問、同時代判定31問・並び替え30問の全件操作、解説・正誤集計・シャッフル・分類フィルタ、390px表示、既存rebuild_v1の991問と英単語ジャンルを確認。
+- 本番buildIdは `20a1e9b9183251419a40`。18資産＋release.jsonの19ファイル。Service Workerのactivated完了を待って、旧版相当キャッシュの削除と新版キャッシュだけが残ることを確認。
+- `.env`、`bot/.env`、サービスアカウント候補パス、`local-history/`、非公開CSV、BotソースのPagesパスはHEADで404。公開mainツリーにも資格情報・非公開CSV・スキャンPDFなし。
+- キーのSheets API限定は所有者がCloudコンソールで確認。実通信では許可外Refererが403、Drive APIはAPI_KEY_SERVICE_BLOCKEDまたはSERVICE_DISABLEDで403（サービス無効の応答だけではキー許可リストを証明しないため区別）。
+- Firebase/Firestoreへの実書込み・アカウント作成、Sheetsの問題変更、Bot再起動は行っていません。端末上で開いたままのタブ/PWAは、学習終了後に全て閉じて開き直すと待機中Workerへ切り替わります。
