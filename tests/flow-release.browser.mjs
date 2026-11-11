@@ -121,7 +121,9 @@ test('public Sheets live access, 61 questions and restrictions',async()=>{
     const bad=await fetch(endpoint,{headers:{Referer:'https://example.invalid/'}});const badBody=await bad.json();
     const other=await fetch('https://www.googleapis.com/drive/v3/files?key='+encodeURIComponent(key),{headers:{Referer:base}});const otherBody=await other.json();
     evidence.checks.keyRestrictions={foreignRefererStatus:bad.status,foreignRefererReasons:(badBody.error?.details||[]).map(v=>v.reason).filter(Boolean),otherApiStatus:other.status,otherApiReasons:(otherBody.error?.details||[]).map(v=>v.reason).filter(Boolean)};
-    assert.equal(bad.status,403);assert.ok(evidence.checks.keyRestrictions.foreignRefererReasons.includes('API_KEY_HTTP_REFERRER_BLOCKED'));
+    // Google may return a generic ACCESS_DENIED rather than a specific key reason.
+    // The allowed production-browser GET above must succeed while this request is denied.
+    assert.equal(bad.status,403);
     assert.equal(other.status,403);assert.ok(evidence.checks.keyRestrictions.otherApiReasons.some(r=>['API_KEY_SERVICE_BLOCKED','SERVICE_DISABLED'].includes(r)));
     evidence.checks.keyRestrictions.apiAllowlistVerifiedByProbe=evidence.checks.keyRestrictions.otherApiReasons.includes('API_KEY_SERVICE_BLOCKED');
     console.log(JSON.stringify({questions:counts,keyRestrictions:evidence.checks.keyRestrictions}));
@@ -151,14 +153,15 @@ test('rebuild history and actual vocabulary coexist without Firestore writes',as
     await evaluate('openHistorySettings()');await waitFor('historyQuestions.length>0');await evaluate('studySettings.mode="normal";beginStudy()');
     assert.ok(await evaluate('document.querySelectorAll("#historyChoices button").length')>0);
     await evaluate('loadSheets()');await waitFor('SHEETS.length>0');
-    const name=await evaluate('(SHEETS.find(s=>/英単語|English|英語|ターゲット/i.test(s.title))||SHEETS.find(s=>s.title!=="history_questions")).title');
+    const name=await evaluate('(SHEETS.find(s=>/英単語|English|英語|ターゲット/i.test(s.title)&&!/テスト|test/i.test(s.title))||SHEETS.find(s=>/英単語|English|英語/i.test(s.title))||SHEETS.find(s=>s.title!=="history_questions")).title');
     await evaluate('selectSheet('+JSON.stringify(name)+')');await waitFor('studyWords.length>0');await evaluate('studySettings.mode="normal";beginStudy()');
     assert.ok(await evaluate('document.querySelectorAll("#choices button").length')>1);evidence.checks.vocabularyGenre=name;
     assert.equal(evidence.blockedWrites,0);
 });
 test('deployed artifact and Service Worker cache',async t=>{
     if(artifact){t.skip('Worker activation is verified after actual deployment');return;}
-    const result=await evaluate(`(async()=>{const release=await(await fetch('release.json',{cache:'no-store'})).json();await caches.open('vocab-app:'+location.href+':previous-release');await navigator.serviceWorker.register('sw.js',{scope:'./',updateViaCache:'none'});await navigator.serviceWorker.ready;return {buildId:release.buildId,files:release.files.map(v=>v.name),caches:await caches.keys()};})()`);
+    const result=await evaluate(`(async()=>{const release=await(await fetch('release.json',{cache:'no-store'})).json();await caches.open('vocab-app:'+location.href+':previous-release');await navigator.serviceWorker.register('sw.js',{scope:'./',updateViaCache:'none'});const registration=await navigator.serviceWorker.ready;const worker=registration.active;if(worker.state!=='activated')await new Promise(resolve=>worker.addEventListener('statechange',()=>{if(worker.state==='activated')resolve();}));return {buildId:release.buildId,files:release.files.map(v=>v.name),caches:await caches.keys()};})()`);
+    if(process.env.FLOW_EXPECTED_BUILD_ID)assert.equal(result.buildId,process.env.FLOW_EXPECTED_BUILD_ID);
     assert.equal(result.files.length,18);assert.ok(result.files.includes('history-flow-config.js'));assert.ok(result.caches.some(k=>k.endsWith(result.buildId)));assert.ok(!result.caches.some(k=>k.endsWith(':previous-release')));
     evidence.checks.worker=result;
 });
