@@ -7,6 +7,8 @@ import vm from 'node:vm';
 export const WEB_FILES = Object.freeze([
     'index.html', 'style.css', 'script.js', 'history-config.js', 'history_questions.js',
     'history-classification.js', 'history-regions.json',
+    'attribute-tags.js', 'history-flow.js', 'history-flow-ui.js', 'history-flow-data.json',
+    'history-flow-config.js', 'history-flow-source.js',
     'pwa.js', 'sw.js', 'manifest.json', 'icons/icon-192.png', 'icons/icon-512.png'
 ]);
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));

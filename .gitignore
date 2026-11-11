@@ -24,3 +24,4 @@ firebase-adminsdk*.json
 history-environments.local.json
 history-reviews.local.json
 /local-history/
+/materials/history-flow-handout-admin-import.csv

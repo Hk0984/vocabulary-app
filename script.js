@@ -961,7 +961,9 @@ function parseSheetData(values) {
         words.push({
             id,
             front,
-            back
+            back,
+            front_tags: String(row[headers.indexOf('front_tags')] ?? ''),
+            back_tags: String(row[headers.indexOf('back_tags')] ?? '')
         });
     }
 
@@ -1014,6 +1016,7 @@ function renderSheetList() {
 // ============================================================
 
 async function selectSheet(sheetName) {
+    if (sheetName === 'history_flow') return window.openHistoryFlow();
     const account = captureAccountContext();
     const selection = ++sheetSelectionRequest;
     if (sheetName === 'history_questions') return selectHistoryGenre(account, selection);
@@ -1904,10 +1907,23 @@ function buildAnswerChoices(
 
     const candidates = [];
     const seen = new Set([normalizeChoiceText(correctAnswer)]);
+    const tagSide = frontToBack ? 'back_tags' : 'front_tags';
+    // Invalid labels must not silently fall back to unrelated answer formats.
+    if (current[tagSide]) {
+        try { AttributeTags.parse(current[tagSide]); }
+        catch (_) { return [correctAnswer]; }
+    }
 
     for (const word of words) {
         if (word === current) {
             continue;
+        }
+
+        let tagRank = 0;
+        if (current[tagSide]) {
+            try { tagRank = AttributeTags.rank(current[tagSide], word[tagSide]); }
+            catch (_) { continue; }
+            if (tagRank < 0) continue;
         }
 
         let answer = frontToBack ? word.back : word.front;
@@ -1942,7 +1958,7 @@ function buildAnswerChoices(
         seen.add(normalizedAnswer);
         candidates.push({
             answer,
-            score: Math.max(
+            score: tagRank * 10 + Math.max(
                 choiceTextSimilarity(targetQuestion, frontToBack ? word.front : word.back),
                 choiceTextSimilarity(correctAnswer, answer)
             )
@@ -3511,7 +3527,7 @@ async function recordHistoryAnswer(question, correct) {
     return true;
 }
 
-function genreLabel(name) { return name === 'history_questions' ? '世界史一問一答' : name; }
+function genreLabel(name) { return name === 'history_flow' ? '世界史の流れ' : name === 'history_questions' ? '世界史一問一答' : name; }
 function learningGenres() { return [...SHEETS.filter(s=>s.title!=='history_questions'), {title:'history_questions'}]; }
 function historyProgressWord(question) { return {historyId:question.id,id:null,front:question.question,back:question['choice'+question.answer]}; }
 

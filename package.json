@@ -6,7 +6,7 @@
     "node": ">=24.12.0"
   },
   "scripts": {
-    "test": "node --test tests/history-classification.test.mjs tests/history-integration.test.mjs tests/history_questions.test.mjs tests/quiz-choices.test.mjs tests/meaning-display.test.mjs tests/history-progress.test.mjs tests/web-build.test.mjs tests/service-worker.test.mjs",
+    "test": "node --test tests/history-flow-source.test.mjs tests/study-data.test.mjs tests/history-flow-ui.test.mjs tests/history-classification.test.mjs tests/history-integration.test.mjs tests/history_questions.test.mjs tests/quiz-choices.test.mjs tests/meaning-display.test.mjs tests/history-progress.test.mjs tests/web-build.test.mjs tests/service-worker.test.mjs",
     "build:web": "node scripts/build-web.mjs",
     "test:rules": "firebase emulators:exec --config firebase.test.json --project demo-vocab-app-security --only firestore \"node --test tests/firestore.rules.test.mjs\"",
     "test:rules:improved": "firebase emulators:exec --config firebase.test.json --project demo-vocab-app-security --only firestore,auth \"node --test tests/firestore.improved.rules.test.mjs\""

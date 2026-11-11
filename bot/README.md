@@ -82,3 +82,9 @@ Code and `.env` changes take effect only after the Bot process is restarted. Bef
 ## Validation tests
 
 Run `.\bot\.venv\Scripts\python.exe -m unittest discover -s bot/tests -v` from the repository root (or use the selected Python executable if you have not created the venv). Tests use fake Sheets callbacks and temporary audit files; they do not connect to Discord or Google.
+# 世界史の流れ専用の管理機能
+
+既存の一問一答コマンドと共存する `/flow` グループを追加しています。
+通常は `/flow import file:...` で全件をdraft登録し、`/flow publish` の本人限定確認ボタンでdraft全件を公開します。個別approveは不要です。既存IDの更新・公開取消し・復旧は差分ハッシュによる明示適用を維持します。
+23列CSV、専用の管理・公開Sheets、接続CLI、権限・承認・監査・復旧は
+[世界史の流れ連携仕様](../docs/HISTORY_FLOW_SHEETS_BOT.md)を参照してください。

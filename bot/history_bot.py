@@ -505,6 +505,12 @@ def _sheet_id(title: str) -> int:
     raise RuntimeError(f"シート '{title}' がありません。")
 
 
+# Register only; this performs no network calls and does not start another Bot.
+import sys as _sys
+from flow_commands import register_flow_commands
+flow_commands = register_flow_commands(_sys.modules[__name__])
+
+
 if __name__ == "__main__":
     load_dotenv(Path(__file__).with_name(".env"))
     token = os.environ.get("DISCORD_BOT_TOKEN")

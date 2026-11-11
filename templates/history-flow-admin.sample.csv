@@ -1,0 +1,3 @@
+﻿id,type,question,item1_id,item1_text,item1_time_ranges,item2_id,item2_text,item2_time_ranges,item3_id,item3_text,item3_time_ranges,item4_id,item4_text,item4_time_ranges,answer,explanation,period_codes,century_codes,area_codes,time_ranges,source,status
+sample_contemporary_001,contemporary,【架空教材】A国の第1期と同じ時期の出来事は？,a,B国の出来事甲,,b,C国の出来事乙,,c,D国の出来事丙,,d,E国の出来事丁,,b,架空の設定では出来事乙が同時期です。史実の教材ではありません。,medieval,ce_12,global,1101..1200,動作説明用の架空教材,draft
+sample_ordering_001,ordering,【架空教材】A国の出来事を古い順に並べてください。,start,第1期の開始,1101..1101,middle,第1期の改革,1150..1150,end,第1期の終了,1200..1200,,,,start;middle;end,架空の設定で開始、改革、終了の順です。,medieval,ce_12,global,1101..1200,,draft

@@ -12,6 +12,8 @@ function worker() {
     const cache = { async put(request) {installed.push(request);}, async match() {return 'current version';} };
     const assets=['./','./index.html','./style.css','./script.js','./history-config.js','./history_questions.js',
         './history-classification.js','./history-regions.json',
+        './attribute-tags.js','./history-flow.js','./history-flow-ui.js','./history-flow-data.json',
+        './history-flow-config.js','./history-flow-source.js',
         './pwa.js','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
     const hashes=Object.fromEntries(assets.map(asset=>[asset,createHash('sha256').update('asset:'+new URL(asset,scope).href).digest('hex')]));
     let skipped = 0, claimed = 0;
@@ -29,7 +31,7 @@ async function lifecycle(handler) {let task;handler({waitUntil(promise){task=pro
 test('install refreshes all shell assets but does not force an update onto open study tabs', async () => {
     const app = worker();
     await lifecycle(app.handlers.install);
-    assert.equal(app.installed.length,12);
+    assert.equal(app.installed.length,18);
     assert.ok(app.installed.every(request=>request.url.startsWith(scope)&&request.cache==='reload'));
     assert.equal(app.skipped,0);
     assert.equal(app.claimed,0);

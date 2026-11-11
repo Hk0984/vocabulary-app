@@ -10,6 +10,21 @@ import { buildWeb, WEB_FILES } from '../scripts/build-web.mjs';
 import { checkPagesSource } from '../scripts/check-pages-release.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+test('production flow config reuses the browser key and Actions builds the same allowlist',async()=>{
+    const source=await readFile(path.join(root,'history-flow-config.js'),'utf8');
+    const context={window:{HISTORY_QUESTIONS_CONFIG:{apiKey:'mock-existing-browser-key'}}};
+    vm.runInNewContext(source,context);
+    const config=context.window.HISTORY_FLOW_CONFIG;
+    assert.deepEqual(Object.keys(config).sort(),['apiKey','mode','sheetName','spreadsheetId']);
+    assert.equal(config.mode,'sheets');assert.equal(config.spreadsheetId,'1CUqOaYi0PcPrWOmrPvf_C5NYAjZ1krB24FYdG_lImak');
+    assert.equal(config.sheetName,'history_flow_public');assert.equal(config.apiKey,'mock-existing-browser-key');
+    const workflow=JSON.parse(await readFile(path.join(root,'.github/workflows/web-release.yml'),'utf8'));
+    const steps=workflow.jobs.build.steps;
+    assert.ok(steps.some(s=>s.run?.includes('node --test tests/web-build.test.mjs tests/service-worker.test.mjs')));
+    assert.ok(steps.some(s=>s.run?.includes('scripts/build-web.mjs --history-public-config config/history-public-rebuild.json')));
+    for(const name of ['history-flow-config.js','history-flow-source.js','history-flow-ui.js','history-flow.js'])assert.ok(WEB_FILES.includes(name));
+    assert.ok(!WEB_FILES.some(n=>n.startsWith('materials/')||n.startsWith('bot/')));
+});
 async function fixture(t) {
     const dir = await mkdtemp(path.join(tmpdir(), 'vocab-web-'));
     t.after(async () => {
@@ -44,6 +59,8 @@ test('artifact contains exactly the reviewed web assets and excludes operational
     const result = await buildWeb(options);
     const expected = ['index.html','style.css','script.js','history-config.js','history_questions.js',
         'history-classification.js','history-regions.json',
+        'attribute-tags.js','history-flow.js','history-flow-ui.js','history-flow-data.json',
+        'history-flow-config.js','history-flow-source.js',
         'pwa.js','sw.js','manifest.json','icons/icon-192.png','icons/icon-512.png','release.json'].sort();
     assert.deepEqual(await filesIn(options.outputDir), expected);
     assert.deepEqual(result.files.sort(), expected);
@@ -161,7 +178,7 @@ test('new public environment build changes only public connection and retains th
     assert.equal(context.window.HISTORY_QUESTIONS_CONFIG.expectedIdPrefix,'hv1_rebuild1_');
     assert.equal(context.window.HISTORY_QUESTIONS_CONFIG.apiKey,'test-public-key');
     assert.equal(await readFile(path.join(options.sourceDir,'history-config.js'),'utf8'),config);
-    assert.equal((await filesIn(options.outputDir)).length,13);
+    assert.equal((await filesIn(options.outputDir)).length,19);
     await buildWeb({...options,outputDir:path.join(options.dir,'rollback')});
     assert.equal(await readFile(path.join(options.dir,'rollback/history-config.js'),'utf8'),config);
 });
