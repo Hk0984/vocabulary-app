@@ -124,7 +124,7 @@ test('public Sheets live access, 61 questions and restrictions',async()=>{
     // Google may return a generic ACCESS_DENIED rather than a specific key reason.
     // The allowed production-browser GET above must succeed while this request is denied.
     assert.equal(bad.status,403);
-    assert.equal(other.status,403);assert.ok(evidence.checks.keyRestrictions.otherApiReasons.some(r=>['API_KEY_SERVICE_BLOCKED','SERVICE_DISABLED'].includes(r)));
+    assert.equal(other.status,403);assert.ok(evidence.checks.keyRestrictions.otherApiReasons.some(r=>['API_KEY_SERVICE_BLOCKED','SERVICE_DISABLED','ACCESS_DENIED'].includes(r)));
     evidence.checks.keyRestrictions.apiAllowlistVerifiedByProbe=evidence.checks.keyRestrictions.otherApiReasons.includes('API_KEY_SERVICE_BLOCKED');
     console.log(JSON.stringify({questions:counts,keyRestrictions:evidence.checks.keyRestrictions}));
 });
@@ -157,6 +157,29 @@ test('rebuild history and actual vocabulary coexist without Firestore writes',as
     await evaluate('selectSheet('+JSON.stringify(name)+')');await waitFor('studyWords.length>0');await evaluate('studySettings.mode="normal";beginStudy()');
     assert.ok(await evaluate('document.querySelectorAll("#choices button").length')>1);evidence.checks.vocabularyGenre=name;
     assert.equal(evidence.blockedWrites,0);
+});
+test('requested layout, removed copy and registered question order',async()=>{
+    for(const width of [390,1280]){
+        await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width===390});
+        await evaluate('showPage("sheetPage");renderSheetList()');
+        const layout=await evaluate(`(()=>{const buttons=[...document.querySelectorAll('#sheetList button')];const flow=buttons.find(b=>b.textContent==='世界史の流れ');const other=buttons.find(b=>b!==flow);const a=flow.getBoundingClientRect(),b=other.getBoundingClientRect();return {count:buttons.filter(b=>b===flow).length,flowWidth:a.width,otherWidth:b.width,flowLeft:a.left,otherLeft:b.left,overflow:document.documentElement.scrollWidth>innerWidth};})()`);
+        assert.equal(layout.count,1);assert.equal(layout.flowWidth,layout.otherWidth);assert.equal(layout.flowLeft,layout.otherLeft);assert.equal(layout.overflow,false);
+        const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(path.join(directory,'genres-'+width+'.png'),Buffer.from(shot.data,'base64'));
+    }
+    assert.equal(await evaluate(`document.body.textContent.includes('項目内はOR、分類軸の間はANDです。')`),false);
+    assert.equal(await evaluate(`document.body.textContent.includes('全地域をチェックしても全世界・未分類は含みません。')`),false);
+    assert.equal(await evaluate(`document.body.textContent.includes('紀元前3500年は文字成立の普遍的な境界ではありません。')`),false);
+    await evaluate('openHistorySettings()');await waitFor('historyQuestions.length>0');
+    await evaluate(`document.getElementById('historyOrder').value='registered';studySettings.mode='normal';studySettings.count=10;window.__expectedHistory=historyCandidates().slice(0,2).map(q=>q.question);beginStudy()`);
+    assert.equal(await evaluate(`document.getElementById('historyQuestion').textContent`),await evaluate('__expectedHistory[0]'));
+    await evaluate(`document.querySelector('#historyChoices button').click();document.getElementById('historyNext').click()`);
+    assert.equal(await evaluate(`document.getElementById('historyQuestion').textContent`),await evaluate('__expectedHistory[1]'));
+    await evaluate('openHistoryFlow()');await waitFor('!document.getElementById("flowStart").disabled');
+    await evaluate(`document.getElementById('flow_type').value='mixed';document.getElementById('flow_order').value='registered';document.getElementById('flow_count').value='10';document.getElementById('flowStart').click()`);
+    assert.equal(await evaluate(`document.getElementById('flowQuestion').textContent`),await evaluate('__qs[0].question'));
+    await evaluate(`(()=>{const q=__qs[0],bs=[...document.querySelectorAll('#flowChoices button')];if(q.type==='contemporary')bs[0].click();else {bs.slice(0,q.events.length).forEach(b=>b.click());bs.find(b=>b.textContent==='回答確定').click();}document.getElementById('flowNext').click();})()`);
+    assert.equal(await evaluate(`document.getElementById('flowQuestion').textContent`),await evaluate('__qs[1].question'));
+    evidence.checks.requestedChanges=true;
 });
 test('deployed artifact and Service Worker cache',async t=>{
     if(artifact){t.skip('Worker activation is verified after actual deployment');return;}

@@ -51,3 +51,14 @@ test('UI: Sheets access errors disable study without serving static questions',a
     await a.context.openHistoryFlow();
     assert.equal(a.get('flowStart').disabled,true);assert.match(a.get('flowStatus').textContent,/アクセスが許可されていません/);
 });
+
+test('UI: registered order follows filtered data order and applies count before retry', async()=>{
+    const a=await app();
+    a.get('flow_order').value='registered';a.get('flow_count').value='1';
+    a.get('flowStart').click();
+    assert.equal(a.get('flowQuestion').textContent,sample.questions[0].question);
+    a.buttons()[0].click();a.get('flowNext').click();
+    assert.match(a.get('flowStatus').textContent,/出題数 1問/);
+    a.get('flowRetry').click();
+    assert.equal(a.get('flowQuestion').textContent,sample.questions[0].question);
+});

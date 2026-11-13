@@ -34,10 +34,12 @@ test('public parser accepts only exact legacy/current headers, keeps string IDs 
 test('virtual genre is unique, independent of word sheets, and links through settings',async()=>{
     const {context,elements,run}=app();
     run(`SHEETS=[{title:'English'},{title:'古文'},{title:'history_questions'}];renderSheetList()`);
-    assert.equal(elements.get('sheetList').children.length,3);
+    assert.equal(elements.get('sheetList').children.length,4);
     assert.equal(elements.get('sheetList').children[2].textContent,'世界史一問一答');
+    assert.equal(elements.get('sheetList').children[3].textContent,'世界史の流れ');
+    assert.equal(elements.get('sheetList').children[3].className,'sheet-button');
     run(`SHEETS=[];renderSheetList()`);
-    assert.equal(elements.get('sheetList').children.length,1);
+    assert.equal(elements.get('sheetList').children.length,2);
     await context.openHistorySettings();
     assert.equal(elements.get('settingsPage').style.display,'');
     assert.equal(elements.get('vocabularyRange').hidden,true);

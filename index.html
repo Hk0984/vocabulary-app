@@ -180,7 +180,6 @@
                     ジャンルを読み込んでいます...
                 </p>
             </div>
-            <button class="sheet-button" onclick="openHistoryFlow()">世界史の流れ</button>
 
             <button
                 id="startButton"
@@ -258,9 +257,8 @@
 
             <section id="historyFilters" class="setting-section history-filter-panel" hidden>
                 <h3>世界史の分類</h3>
-                <p>項目内はOR、分類軸の間はANDです。0件選択は全範囲です。</p>
-                <p>全地域をチェックしても全世界・未分類は含みません。</p>
-                <p>時代は全地域共通の学習用区分です。紀元前3500年は文字成立の普遍的な境界ではありません。</p>
+                <label for="historyOrder">出題順</label>
+                <select id="historyOrder"><option value="random">ランダム</option><option value="registered">登録順</option></select>
                 <div id="historyFilterOptions"></div>
             </section>
 
@@ -778,6 +776,7 @@
         <label>時代 <select id="flow_periods" multiple></select></label>
         <label>世紀 <select id="flow_centuries" multiple></select></label>
         <label>地域 <select id="flow_areas" multiple></select></label>
+        <label>出題順 <select id="flow_order"><option value="random">ランダム</option><option value="registered">登録順</option></select></label>
         <label>問題数 <select id="flow_count"><option>10</option><option>20</option><option>30</option><option value="all">すべて</option></select></label>
         <button id="flowStart" disabled>学習開始</button>
         <details><summary>データ検証結果</summary><pre id="flowErrors"></pre></details>

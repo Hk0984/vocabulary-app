@@ -988,7 +988,7 @@ function renderSheetList() {
 
     container.innerHTML = "";
 
-    learningGenres().forEach(sheet => {
+    [...learningGenres().filter(sheet => sheet.title !== 'history_flow'), {title:'history_flow'}].forEach(sheet => {
 
         const button =
             document.createElement(
@@ -1316,7 +1316,7 @@ function updateFormatLabels() {
 function beginStudy() {
     if (selectedSheet === 'history_questions') {
         const candidates = historyCandidates();
-        if (candidates.length) window.startHistoryQuiz({questions:candidates,count:studySettings.count});
+        if (candidates.length) window.startHistoryQuiz({questions:candidates,count:studySettings.count,order:document.getElementById('historyOrder')?.value});
         return;
     }
     setText("studySaveStatus", "");

@@ -342,3 +342,14 @@ test('late history save failures do not display on a new account session', async
     assert.equal(elements.get('historySaveStatus').textContent,'');
     assert.equal(elements.get('historySummary').textContent,'');
 });
+
+ test('registration order preserves source rows before limiting and still shuffles choices', () => {
+    const { context } = makeApp();
+    const core = context.HistoryQuestionCore;
+    const rows = core.parseHistoryQuestionValues([headers, question('z9'), question('a1'), question('m5')]);
+    const original = JSON.stringify(rows);
+    const session = core.createSession(rows, 2, () => 0, 'registered');
+    assert.deepEqual(Array.from(session, q => q.id), ['z9', 'a1']);
+    assert.notEqual(session[0].choices[0].text, rows[0].choice1);
+    assert.equal(JSON.stringify(rows), original);
+});

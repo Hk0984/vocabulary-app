@@ -43,7 +43,8 @@
     function start() {
         const pool=candidates();if(!pool.length)return;
         const count=settings().count;
-        active=root.HistoryFlow.session(root.HistoryFlow.shuffle(pool).slice(0,count==='all'?pool.length:Number(count)));
+        const ordered=el('flow_order').value==='registered'?pool:root.HistoryFlow.shuffle(pool);
+        active=root.HistoryFlow.session(ordered.slice(0,count==='all'?pool.length:Number(count)));
         el('flowSettings').hidden=true;el('flowQuiz').hidden=false;el('flowActions').hidden=true;render();
     }
     function render() {

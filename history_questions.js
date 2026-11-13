@@ -66,10 +66,11 @@
         return result;
     }
 
-    function createSession(items, count = 10, random = Math.random) {
+    function createSession(items, count = 10, random = Math.random, order = 'random') {
         const unique = [...new Map(items.map(item => [item.id, item])).values()];
         const limit = count === "unlimited" ? unique.length : Math.max(1, Number(count) || 10);
-        return shuffled(unique, random).slice(0, limit).map(question => {
+        const ordered = order === 'registered' ? unique : shuffled(unique, random);
+        return ordered.slice(0, limit).map(question => {
             const choices = shuffled([1, 2, 3, 4].map(number => ({
                 text: question["choice" + number], correct: isCorrect(question, number)
             })), random);
@@ -173,7 +174,7 @@
         setStatus("問題を読み込み中です…", false);
         try {
             if (options.questions) {
-                questions = createSession(options.questions, count);
+                questions = createSession(options.questions, count, Math.random, options.order);
                 if (!questions.length) { setStatus('条件に合う問題がありません。学習設定を変更してください。', false); return; }
                 element('historyStatus').textContent = root.historySavingNotice?.() || '';
                 element('historyQuiz').style.display = '';
@@ -204,7 +205,7 @@
             }
             const sourceRowCount = values.length - 1;
             const validQuestions = parseDataset(values,config);
-            questions = createSession(validQuestions, count);
+            questions = createSession(validQuestions, count, Math.random, options.order);
             if (sourceRowCount === 0) {
                 setStatus("公開用の問題データはまだありません。", false);
                 return;
