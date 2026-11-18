@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { buildWeb, WEB_FILES } from '../scripts/build-web.mjs';
 import { checkPagesSource } from '../scripts/check-pages-release.mjs';
+import { buildIphonePreview } from '../scripts/build-iphone-preview.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 test('production flow config reuses the browser key and Actions builds the same allowlist',async()=>{
@@ -52,14 +53,15 @@ async function filesIn(dir, prefix = '') {
 
 test('artifact contains exactly the reviewed web assets and excludes operational directories', async t => {
     const options = await fixture(t);
-    for (const name of ['bot/operations.txt', 'tests/private-fixture.txt', 'node_modules/example.txt', 'local-config.txt']) {
+    for (const name of ['bot/operations.txt', 'docs/ai-handoff/HANDOFF.md',
+        'scripts/print-ai-handoff.mjs', 'tests/private-fixture.txt', 'node_modules/example.txt', 'local-config.txt']) {
         await mkdir(path.dirname(path.join(options.sourceDir, name)), {recursive:true});
         await writeFile(path.join(options.sourceDir, name), 'not for publication');
     }
     const result = await buildWeb(options);
     const expected = ['index.html','style.css','script.js','history-config.js','history_questions.js',
         'history-classification.js','history-regions.json',
-        'attribute-tags.js','history-flow.js','history-flow-ui.js','history-flow-data.json',
+        'attribute-tags.js','choice-dictionary.json','history-flow.js','history-flow-ui.js','history-flow-data.json',
         'history-flow-config.js','history-flow-source.js',
         'pwa.js','sw.js','manifest.json','icons/icon-192.png','icons/icon-512.png','release.json'].sort();
     assert.deepEqual(await filesIn(options.outputDir), expected);
@@ -178,7 +180,7 @@ test('new public environment build changes only public connection and retains th
     assert.equal(context.window.HISTORY_QUESTIONS_CONFIG.expectedIdPrefix,'hv1_rebuild1_');
     assert.equal(context.window.HISTORY_QUESTIONS_CONFIG.apiKey,'test-public-key');
     assert.equal(await readFile(path.join(options.sourceDir,'history-config.js'),'utf8'),config);
-    assert.equal((await filesIn(options.outputDir)).length,19);
+    assert.equal((await filesIn(options.outputDir)).length,20);
     await buildWeb({...options,outputDir:path.join(options.dir,'rollback')});
     assert.equal(await readFile(path.join(options.dir,'rollback/history-config.js'),'utf8'),config);
 });
@@ -199,4 +201,29 @@ test('environment choice remains manual, legacy by default, with a fixed public-
     const build=workflow.jobs.build.steps.find(s=>s.name==='Build allowlisted web assets');
     assert.match(build.run,/--history-public-config config\/history-public-rebuild.json/);
     assert.equal(build.env.HISTORY_ENVIRONMENT,'${{ inputs.history_environment }}');
+});
+
+test('iPhone artifact is distinct and contains only synthetic data and same-origin connections', async t => {
+    const {outputDir,sourceDir} = await fixture(t);
+    const preview = await buildIphonePreview(outputDir);
+    const production = await buildWeb({sourceDir,outputDir:path.join(outputDir,'../production')});
+    assert.notEqual(preview.buildId,production.buildId);
+    assert.deepEqual(preview.files.sort(),production.files.sort());
+    const read = name => readFile(path.join(outputDir,name),'utf8');
+    const html = await read('index.html');
+    assert.match(html,/iPhone検証用・架空データ・履歴保存なし/);
+    assert.match(html,/connect-src 'self'/);
+    assert.doesNotMatch(html,/gstatic|<script src="https?:/);
+    const code = [await read('script.js'), await read('history-config.js'), await read('history-flow-config.js')].join('\n');
+    assert.match(code,/const FIREBASE_CONFIG = \{\}/);
+    assert.match(code,/iphone-review-history/);
+    assert.doesNotMatch(code,/AIza[A-Za-z0-9_-]{35}|firebaseapp\.com|appspot\.com/);
+    const data = JSON.parse(await read('history-flow-data.json'));
+    assert.deepEqual(data.questions.map(q=>q.type),['contemporary','ordering','cloze']);
+    assert.ok(data.questions.every(q=>q.id.startsWith('sample_')));
+    assert.equal(JSON.parse(await read('choice-dictionary.json')).reviewed_numeric,undefined);
+    const release = JSON.parse(await read('release.json'));
+    for (const asset of release.files) {
+        assert.equal(createHash('sha256').update(await readFile(path.join(outputDir,asset.name))).digest('hex'),asset.sha256);
+    }
 });

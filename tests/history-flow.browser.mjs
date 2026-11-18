@@ -24,7 +24,7 @@ function send(method, params = {}) {
 }
 async function evaluate(expression) {
     const response = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
-    if (response.exceptionDetails) throw new Error(response.exceptionDetails.text);
+    if (response.exceptionDetails) throw new Error(response.exceptionDetails.exception?.description?.split('\n')[0] ?? response.exceptionDetails.text);
     return response.result.value;
 }
 
@@ -59,6 +59,7 @@ before(async () => {
     await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
     socket.onmessage = event => {
         const message = JSON.parse(event.data), item = pending.get(message.id);
+
         if (!item) return;
         pending.delete(message.id); clearTimeout(item.timer);
         if (message.error) item.reject(new Error(message.error.message)); else item.resolve(message.result);
@@ -86,12 +87,9 @@ async function fixture(width,data) {
     await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<600});
     const setup=`const appReady=[];const originalAdd=document.addEventListener.bind(document);document.addEventListener=(name,fn)=>{if(name==='DOMContentLoaded')appReady.push(fn);else originalAdd(name,fn);};`;
     const scripts=setup+code.join('\n')+`\nwindow.HISTORY_FLOW_CONFIG={mode:'static'};window.fetch=async url=>({ok:true,json:async()=>String(url).includes('regions')?${JSON.stringify(regions)}:${JSON.stringify(data)}});appReady.at(-1)();`;
-    const page=html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<link\b[^>]*>/gi,'').replace('</head>','<style>'+css+'</style></head>').replace('</body>','<script>'+scripts+'</script></body>');
-    await send('Page.navigate',{url:'data:text/html;charset=utf-8,'+encodeURIComponent(page)});
-    for(let i=0;i<100;i++) {
-        if(await evaluate('typeof openHistoryFlow === "function"'))break;
-        await new Promise(resolve=>setTimeout(resolve,20));
-    }
+    const page=html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<link\b[^>]*>/gi,'').replace('</head>',()=>'<style>'+css+'</style></head>').replace('</body>',()=>'<script>'+scripts+'</script></body>');
+    const {frameId} = await send('Page.navigate',{url:'about:blank'});
+    await send('Page.setDocumentContent',{frameId,html:page});
     await evaluate('openHistoryFlow()');
 }
 for(const width of [375,1280])test(`flow settings and ordering at ${width}px`,async()=>{
@@ -134,5 +132,48 @@ test('dedicated Sheets adapter loads all 61 questions and orders synthetic items
     await evaluate(`Math.random=()=>0;document.getElementById('flow_type').value='ordering';document.getElementById('flowStart').click();`);
     await evaluate(`(()=>{const rows=${JSON.stringify(rows)};const r=rows.find(r=>r.question===document.getElementById('flowQuestion').textContent);for(const id of r.answer.split(';')){const i=[1,2,3,4].find(i=>r['item'+i+'_id']===id);[...document.querySelectorAll('#flowChoices button')].find(b=>b.textContent===r['item'+i+'_text']).click();}[...document.querySelectorAll('#flowChoices button')].find(b=>b.textContent==='回答確定').click();})()`);
     assert.match(await evaluate('document.getElementById("flowExplanation").textContent'),/^正解です/);
+    assert.equal(await evaluate('document.documentElement.scrollWidth > innerWidth'),false);
+});
+
+test('cloze, dark mode and mobile touch targets with isolated Chromium', async () => {
+    const data = JSON.parse(await readFile(path.join(root,'templates/history-flow-cloze.sample.json'),'utf8'));
+    await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:'dark'}]});
+    await fixture(402,data);
+    const dark = await evaluate('getComputedStyle(document.body).backgroundColor');
+    assert.equal(dark,'rgb(18, 23, 31)');
+    await evaluate('document.getElementById("flowStart").click()');
+    assert.equal(await evaluate('document.documentElement.scrollWidth > innerWidth'),false);
+    assert.equal(await evaluate('[...document.querySelectorAll("#flowChoices select, #flowChoices input, #flowChoices button")].every(el=>el.getBoundingClientRect().height>=44)'),true);
+    await evaluate(`const a=document.querySelector('#flowChoices select'),b=document.querySelector('#flowChoices input');
+        a.value='b';a.dispatchEvent(new Event('change'));
+        b.value='記録帳';b.dispatchEvent(new Event('input'));document.querySelector('#flowChoices button').click();`);
+    assert.match(await evaluate('document.getElementById("flowExplanation").textContent'),/空欄 1\/2 正解/);
+    await send('Emulation.setDeviceMetricsOverride',{width:874,height:402,deviceScaleFactor:1,mobile:true});
+    assert.equal(await evaluate('document.documentElement.scrollWidth > innerWidth'),false);
+    await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:'light'}]});
+    assert.equal(await evaluate('getComputedStyle(document.body).backgroundColor'),'rgb(245, 247, 250)');
+    assert.match(await evaluate('document.getElementById("flowExplanation").textContent'),/空欄 1\/2 正解/);
+});
+
+test('tag dictionary reaches the ordinary quiz through genre selection', async () => {
+    const dictionary = JSON.parse(await readFile(path.join(root,'choice-dictionary.json'),'utf8'));
+    await fixture(402,{schema_version:'1.0',questions:[]});
+    await evaluate(`(async () => {
+        currentUser = {uid:'fixture',isAnonymous:true};
+        const values = [
+            ['id','front','back','back_tags'],
+            ['91','日本の首都','東京','geography/city']
+        ];
+        window.fetch = async url => ({ok:true,json:async()=>url==='choice-dictionary.json'?${JSON.stringify(dictionary)}:{values}});
+        await selectSheet('synthetic');
+        showNavigation();
+        beginStudy();
+    })()`);
+    const choices = await evaluate(`[...document.querySelectorAll('#choices button')].map(button=>({
+        text:button.textContent,height:button.getBoundingClientRect().height
+    }))`);
+    assert.equal(choices.length,4);
+    assert.ok(choices.some(button=>button.text==='東京'));
+    assert.ok(choices.every(button=>button.height>=44));
     assert.equal(await evaluate('document.documentElement.scrollWidth > innerWidth'),false);
 });

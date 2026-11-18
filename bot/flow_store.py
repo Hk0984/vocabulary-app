@@ -9,7 +9,7 @@ from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from datetime import datetime, timezone
 
-from flow_schema import ADMIN_HEADERS, PUBLIC_HEADERS, FlowError, public_rows, temporal_issues, validate_rows
+from flow_schema import ADMIN_HEADERS, PUBLIC_HEADERS, GENERATED_SOURCE, FlowError, public_rows, temporal_issues, validate_rows
 from instance_lock import acquire_instance_lock, release_instance_lock
 
 
@@ -55,6 +55,8 @@ def plan_operation(admin, public, action, *, actor, rows=None, question_id=None,
             if old and all(old[k] == row[k] for k in ADMIN_HEADERS if k != 'status'):
                 continue  # Idempotent import never resets approved/published state.
             if old:
+                if old['source'].startswith(GENERATED_SOURCE) and not row['source'].startswith(GENERATED_SOURCE):
+                    raise FlowError('source: 作成候補の出典記録は維持してください')
                 if not update:
                     fields = [k for k in ADMIN_HEADERS if old[k] != row[k]]
                     raise FlowError(f"{row['id']}: 既存IDとの衝突（差分: {', '.join(fields)}）。updateを明示してドライランしてください")
@@ -66,8 +68,11 @@ def plan_operation(admin, public, action, *, actor, rows=None, question_id=None,
         if question_id is not None and question_id not in by_id:
             raise FlowError('id: 対象が見つかりません')
         targets = ([by_id[question_id]] if question_id is not None else
-                   [r for r in after if r['status'] == 'draft'])
+                   [r for r in after if r['status'] == 'draft' and
+                    r['type'] != 'cloze' and not r['source'].startswith(GENERATED_SOURCE)])
         for row in targets:
+            if row['status'] == 'draft' and (row['type'] == 'cloze' or row['source'].startswith(GENERATED_SOURCE)):
+                raise FlowError('status: 空欄問題・生成候補は人手で承認してから公開してください')
             if row['status'] == 'published':
                 continue
             issues = temporal_issues(row)
@@ -81,6 +86,8 @@ def plan_operation(admin, public, action, *, actor, rows=None, question_id=None,
         if action == 'edit':
             if field not in ADMIN_HEADERS or field in {'id', 'status'} or not isinstance(value, str):
                 raise FlowError('field: ID・状態以外の有効な列を指定してください')
+            if field == 'source' and row['source'].startswith(GENERATED_SOURCE) and not value.startswith(GENERATED_SOURCE):
+                raise FlowError('source: 作成候補の出典記録は維持してください')
             if row[field] != value:
                 row[field] = value
                 row['status'] = 'draft'

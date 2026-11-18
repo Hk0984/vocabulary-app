@@ -36,7 +36,7 @@ test('numeric formats cannot match indirectly through nonnumeric auxiliary label
     }
     assert.equal(AttributeTags.rank('person/politician','geography/country'),-1);
 });
-const choice=(current,words,format='frontToBack',hard=false)=>Array.from(context.buildAnswerChoices(current,words,format,hard?'hard answer':undefined,hard?new Map(words.map(w=>[w,w.back])):undefined));
+const choice=(current,words,format='frontToBack',hard=false)=>Array.from(context.buildAnswerChoices(current,words,format,hard?current.back:undefined,hard?new Map(words.map(w=>[w,w.back])):undefined));
 test('labeled directions, hard meanings, incompatible and untagged exclusions',()=>{
     const words=[{front:'alpha',back:'15%',back_tags:'number/percent',front_tags:'person/politician'},
         {front:'bravo',back:'40%',back_tags:'number/percent',front_tags:'person/politician'},
@@ -44,7 +44,7 @@ test('labeled directions, hard meanings, incompatible and untagged exclusions',(
         {front:'delta',back:'70%'}, {front:'echo',back:'Newton',back_tags:'person/scientist'}];
     assert.deepEqual(choice(words[0],words),['15%','40%']);
     assert.deepEqual(choice(words[0],words,'backToFront'),['alpha','bravo']);
-    assert.deepEqual(choice(words[0],words,'frontToBack',true),['hard answer','40%']);
+    assert.deepEqual(choice(words[0],words,'frontToBack',true),['15%','40%']);
     assert.deepEqual(choice(words[0],[words[0],words[2]]),['15%']);
     const unlabeled={front:'foxtrot',back:'無設定'};assert.equal(choice(unlabeled,[unlabeled,...words]).length,4);
 });

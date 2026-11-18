@@ -2,7 +2,11 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f7fa">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#12171f">
 
     <title>単語学習</title>
 
@@ -11,9 +15,9 @@
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
     <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-app-compat.js" integrity="sha384-b1CWci0SaI05xAJao7+U+7e+gNKOl4vZnNQHy/DYL4qnfACkhq8nV/8rasGUskSc" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-auth-compat.js" integrity="sha384-0Gg4gw2/vCGckM+XGxUmijbO/g+KBWwhLeWlPzehXm7IyXIW1dXJT3FKBdJ8wK+B" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore-compat.js" integrity="sha384-Ge64KfBOULClHbopA+CuNwcDKcmElYkeU/wCXmAiWN0pqlbET6cPN8IiwMz9w33f" crossorigin="anonymous"></script>
 </head>
 
 <body>
@@ -771,7 +775,7 @@
     <button class="back-button" onclick="showPage('homePage')">ホームへ戻る</button>
     <div id="flowStatus" role="status" aria-live="polite"></div>
     <div id="flowSettings" class="setting-section">
-        <label>出題形式 <select id="flow_type"><option value="mixed">混合</option><option value="contemporary">同時代判定</option><option value="ordering">年代順並び替え</option></select></label>
+        <label>出題形式 <select id="flow_type"><option value="mixed">混合</option><option value="contemporary">同時代判定</option><option value="ordering">年代順並び替え</option><option value="cloze">複数空欄補充</option></select></label>
         <p>分類は複数選択できます。未選択は全範囲です。</p>
         <label>時代 <select id="flow_periods" multiple></select></label>
         <label>世紀 <select id="flow_centuries" multiple></select></label>

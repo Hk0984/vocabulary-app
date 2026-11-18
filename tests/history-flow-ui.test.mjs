@@ -62,3 +62,24 @@ test('UI: registered order follows filtered data order and applies count before 
     a.get('flowRetry').click();
     assert.equal(a.get('flowQuestion').textContent,sample.questions[0].question);
 });
+
+test('UI: cloze supports choice and text, partial grading, complete sentence and retry', async () => {
+    const source = JSON.parse(await read('../templates/history-flow-cloze.sample.json'));
+    const a = await app(source);
+    a.get('flow_type').value = 'cloze';
+    a.get('flowStart').click();
+    assert.match(a.get('flowQuestion').textContent,/（1）.*（2）/);
+    const [choice,input] = a.get('flowChoices').children.slice(0,2).map(node=>node.children[0]);
+    const [submit] = a.buttons();
+    assert.equal(submit.disabled,true);
+    choice.value = 'b';
+    input.value = ' 記録帳 ';
+    input.listeners.input();
+    submit.click();
+    assert.match(a.get('flowExplanation').textContent,/空欄 1\/2 正解.*\n架空の市では広場で会議を開き、決定を記録簿に残した。/);
+    assert.equal(choice.disabled,true);
+    assert.equal(input.disabled,true);
+    a.get('flowNext').click();
+    a.get('flowRetry').click();
+    assert.equal(a.buttons()[0].disabled,true);
+});

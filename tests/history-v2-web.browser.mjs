@@ -38,7 +38,7 @@ before(async()=>{
     artifact=path.join(directory,'web');await buildWeb({outputDir:artifact,publicConfig});
     const release=JSON.parse(await readFile(path.join(artifact,'release.json'),'utf8'));
     const allowed=new Set([...release.files.map(f=>f.name),'release.json']);
-    assert.equal(allowed.size,19);
+    assert.equal(allowed.size,20);
     server=createServer(async(req,res)=>{
         const name=decodeURIComponent(new URL(req.url,'http://localhost').pathname).slice(1)||'index.html';
         if(req.method!=='GET'||!allowed.has(name)){res.writeHead(404).end();return;}
@@ -141,7 +141,7 @@ test('13-column data: genre, filters, quiz, explanation and anonymous no-save',a
     if(!requireLive)expectedRow=Object.fromEntries(headers.map((k,i)=>[k,synthetic[i]]));
     await evaluate(`currentUser=null;db={runTransaction(){throw Error('PRODUCTION WRITE FORBIDDEN');}};
         SHEETS=[{title:'English'},{title:'古文'}];renderSheetList();`);
-    assert.deepEqual(await evaluate(`[...document.querySelectorAll('#sheetList button')].map(e=>e.textContent)`),['English','古文','世界史一問一答']);
+    assert.deepEqual(await evaluate(`[...document.querySelectorAll('#sheetList button')].map(e=>e.textContent)`),['English','古文','世界史一問一答','世界史の流れ']);
     await evaluate(`document.querySelectorAll('#sheetList button')[2].click()`);
     for(let i=0;i<50;i++){if(await evaluate(`document.getElementById('settingsPage').style.display===''&&historyQuestions.length===1`))break;await new Promise(r=>setTimeout(r,50));}
     assert.equal(await evaluate('historyQuestions.length'),1);

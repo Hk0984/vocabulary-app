@@ -30,7 +30,7 @@ from instance_lock import AlreadyRunningError, acquire_instance_lock, release_in
 
 from history_classification import MANAGEMENT_HEADERS, validate as validate_classification
 from history_data import validate_table
-from history_environment import active_profile, require_approved, ApprovalRequiredError
+from history_environment import active_profile, require_approved, ApprovalRequiredError, repository_path
 
 SHEET_HEADERS = MANAGEMENT_HEADERS.copy()
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -38,9 +38,37 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 _SHEET_MUTATION_LOCK = asyncio.Lock()
 
 
+def credential_path():
+    try:
+        path = repository_path(os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "service-account.json"))
+        if path.suffix.lower() != '.json' or not path.is_file():
+            raise ValueError()
+    except (OSError, ValueError):
+        raise RuntimeError('GOOGLE_SERVICE_ACCOUNT_FILE のファイルを確認できません。相対パスの基準はリポジトリ直下です。') from None
+    return path
+
+
+def check_configuration():
+    credential_path()
+    profile = active_profile()
+    if profile and not Path(profile['review_file']).is_file():
+        raise RuntimeError('選択中の環境の承認記録ファイルが見つかりません。基準は環境JSONの親です。')
+    guild_id = os.environ.get('DISCORD_GUILD_ID')
+    if guild_id and not (guild_id.isascii() and guild_id.isdecimal() and int(guild_id) > 0):
+        raise RuntimeError('DISCORD_GUILD_ID は正のDiscord IDで指定してください。')
+    management_id, management_title = sheet_config()
+    public_id, _ = public_sheet_config()
+    if not management_title.strip() or management_id.strip() == public_id.strip():
+        raise RuntimeError('管理用・公開用の接続先を別々に設定してください。')
+    if any(os.environ.get(name) for name in (
+        'FLOW_ADMIN_SPREADSHEET_ID','FLOW_ADMIN_SHEET_NAME','FLOW_PUBLIC_SPREADSHEET_ID','FLOW_PUBLIC_SHEET_NAME'
+    )):
+        from flow_store import configuration
+        configuration()
+
+
 def sheets_client():
-    credential_file = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "service-account.json")
-    credentials = Credentials.from_service_account_file(credential_file, scopes=SCOPES)
+    credentials = Credentials.from_service_account_file(str(credential_path()), scopes=SCOPES)
     return build("sheets", "v4", credentials=credentials, cache_discovery=False).spreadsheets()
 
 
@@ -154,6 +182,9 @@ def update_status(row_numbers: list[int], status: str) -> None:
 
 def allowed_user(interaction: discord.Interaction) -> bool:
     admins = {value.strip() for value in os.environ.get("ADMIN_USER_IDS", "").split(",") if value.strip()}
+    guild_id = os.environ.get("DISCORD_GUILD_ID")
+    if guild_id and str(interaction.guild_id) != guild_id:
+        return False
     return str(interaction.user.id) in admins
 
 
@@ -429,9 +460,7 @@ async def repair_publish_batch(interaction: discord.Interaction, batch_id: str):
             await audit_failure(interaction, "publication_repair", batch_id, question_ids)
             await report_reconciliation_error(interaction, batch_id)
         except Exception:
-            logging.getLogger("history_bot").exception(
-                "Unexpected exception during /repair-publish (batch_id=%s)", batch_id
-            )
+            logging.getLogger("history_bot").error("Unexpected failure during /repair-publish")
             await audit_failure(interaction, "publication_repair", batch_id, question_ids)
             await report_operation_error(interaction)
 
@@ -513,6 +542,13 @@ flow_commands = register_flow_commands(_sys.modules[__name__])
 
 if __name__ == "__main__":
     load_dotenv(Path(__file__).with_name(".env"))
+    if _sys.argv[1:] == ['--check-config']:
+        try:
+            check_configuration()
+        except (RuntimeError, ValueError) as error:
+            raise SystemExit(str(error)) from None
+        print('設定を確認しました。Discord・Sheetsには接続していません。')
+        raise SystemExit(0)
     token = os.environ.get("DISCORD_BOT_TOKEN")
     if not token:
         raise SystemExit("DISCORD_BOT_TOKEN を bot/.env に設定してください。")

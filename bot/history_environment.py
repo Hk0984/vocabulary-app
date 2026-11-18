@@ -3,8 +3,18 @@ import json
 import os
 import re
 from functools import lru_cache
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from history_data import question_digest
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def repository_path(value):
+    path = Path(value)
+    if os.name != 'nt' and PureWindowsPath(value).drive:
+        raise ValueError('Windowsのパスを使用中です。この環境のパスへ変更してください')
+    return path if path.is_absolute() else REPO_ROOT / path
+
 
 class ApprovalRequiredError(RuntimeError):
     pass
@@ -48,7 +58,7 @@ def active_profile():
     if not filename and not selected:return None  # Preserve existing legacy configuration.
     if not filename or not selected:raise RuntimeError('環境JSONと環境名を両方明示してください')
     try:
-        profile=dict(_profile_snapshot(filename,selected))
+        profile=dict(_profile_snapshot(str(repository_path(filename)),selected))
         old={os.environ.get('GOOGLE_SHEETS_SPREADSHEET_ID'),os.environ.get('PUBLIC_QUESTIONS_SPREADSHEET_ID')}-{None,''}
         if profile['management_spreadsheet_id'] in old or profile['public_spreadsheet_id'] in old:raise ValueError('旧接続先を新環境として使用できません')
         return profile

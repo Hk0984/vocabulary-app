@@ -88,3 +88,9 @@ Run `.\bot\.venv\Scripts\python.exe -m unittest discover -s bot/tests -v` from t
 通常は `/flow import file:...` で全件をdraft登録し、`/flow publish` の本人限定確認ボタンでdraft全件を公開します。個別approveは不要です。既存IDの更新・公開取消し・復旧は差分ハッシュによる明示適用を維持します。
 23列CSV、専用の管理・公開Sheets、接続CLI、権限・承認・監査・復旧は
 [世界史の流れ連携仕様](../docs/HISTORY_FLOW_SHEETS_BOT.md)を参照してください。
+
+## 設定の事前診断
+
+`python bot/history_bot.py --check-config` で、選択環境、管理・公開の接続先の分離、資格情報ファイルの存在、指定時の専用Flow設定を検証できます。標準出力に接続ID・ファイルパス・トークンを出さず、BotやSheetsへ接続しません。サービスアカウントファイル自体の読み取りも行いません。
+
+`GOOGLE_SERVICE_ACCOUNT_FILE` と `HISTORY_ENVIRONMENT_FILE` の相対パスはリポジトリ直下を基準とします。環境JSON内の承認記録はJSONの親ディレクトリを基準とします。移設後に以前の絶対パスが残っていれば、現在の環境のパスへ修正してから再診断してください。Discordのサーバー指定がある場合、管理操作にはそのサーバーと許可ユーザーの一致が必要です。

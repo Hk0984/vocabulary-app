@@ -26,9 +26,9 @@ const document = {
         return elements.get(id);
     },
     createElement() { return element(); },
-    querySelectorAll() { return activeButtons; }
+    querySelectorAll(selector) { return selector === "#choices .choice" ? activeButtons : []; }
 };
-const context = vm.createContext({ document, Math });
+const context = vm.createContext({ document, Math, window: { scrollTo() {} } });
 vm.runInContext(source, context);
 const pickDisplayMeaning = context.pickDisplayMeaning;
 
@@ -133,4 +133,23 @@ test("four-choice answers show one cached meaning and preserve reverse-format pa
     ));
     assert.ok(reverseChoices.includes("bank"));
     assert.ok(!reverseChoices.includes("銀行／川のほとり"));
+});
+
+test("誤答復習で表示訳を再抽選し、問題IDと履歴キーを維持する", () => {
+    const random = [0, 0.99];
+    context.pickDisplayMeaning = value => pickDisplayMeaning(value, () => random.shift() ?? 0);
+    vm.runInContext(`
+        currentUser = {uid:"fixture",isAnonymous:true};
+        studySettings.meaningDisplay = "hard";
+        studySettings.format = "backToFront";
+        studyWords = [{id:18,front:"bank",back:"銀行／川のほとり"}];
+        currentWord = null;
+        currentIndex = 0;
+        showQuestion();
+    `,context);
+    assert.equal(elements.get("question").textContent,"銀行");
+    vm.runInContext(`sessionResults = [{word:currentWord,correct:false}];startWrongReview();`,context);
+    assert.equal(elements.get("question").textContent,"川のほとり");
+    assert.equal(vm.runInContext("getWordKey(currentWord)",context),"id_18");
+    assert.equal(vm.runInContext("currentWord.back",context),"銀行／川のほとり");
 });

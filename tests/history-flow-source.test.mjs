@@ -56,3 +56,46 @@ test('source selection is explicit and rejects private settings or one-question 
     globalThis.HISTORY_QUESTIONS_CONFIG={spreadsheetId:config.spreadsheetId};
     try{assert.throws(()=>HistoryFlowSource.validateConfig(config));}finally{delete globalThis.HISTORY_QUESTIONS_CONFIG;}
 });
+
+test('cloze data projects through the unchanged public columns and grades partial answers', async () => {
+    const data = JSON.parse(await readFile(new URL('../templates/history-flow-cloze.sample.json',import.meta.url),'utf8'));
+    const [q] = data.questions;
+    const draft = { ...q, answer: '' };
+    q.blanks.forEach(({id,...blank},index) => {
+        draft[`item${index+1}_id`] = id;
+        draft[`item${index+1}_text`] = JSON.stringify(blank);
+    });
+    const mixed = [...values,HistoryFlowSource.HEADERS.map(key=>draft[key]??'')];
+    const loaded = HistoryFlowSource.parseValues(mixed,master);
+    assert.deepEqual(loaded.questions.at(-1),q);
+    assert.equal(HistoryFlow.load({...data,schema_version:'1.0'},master).errors.length,1);
+    const session = HistoryFlow.session([loaded.questions.at(-1)]);
+    assert.equal(session.submit(['b',' ']),null);
+    assert.equal(session.submit(['b',' 記録帳 ']),false);
+    assert.deepEqual(session.lastGrade,{points:1,total:2,results:[false,true]});
+    assert.equal(session.submit(['a','記録簿']),null);
+    assert.ok(session.next());
+    assert.equal(session.lastGrade,null);
+
+    draft.item1_text = '{"mode":"input","accepted":["Ａ","a"]}';
+    assert.throws(()=>HistoryFlowSource.parseValues([...values,HistoryFlowSource.HEADERS.map(key=>draft[key]??'')],master),/不正データ/);
+});
+
+test('cloze rejects normalized duplicate and blank answers and does not consume incomplete submissions', async () => {
+    const data = JSON.parse(await readFile(new URL('../templates/history-flow-cloze.sample.json',import.meta.url),'utf8'));
+    const [q] = data.questions;
+    for (const invalid of [['\ufeff'], ['Ａ\u3000Ｂ','\ufeffa\u202fb']]) {
+        const updated = structuredClone(q);
+        updated.blanks[1].accepted = invalid;
+        assert.throws(() => HistoryFlow.validate(updated,master), /正答が不正/);
+    }
+    q.blanks[1].accepted = ['Ａ\u3000Ｂ'];
+    const session = HistoryFlow.session([HistoryFlow.validate(q,master)]);
+    const incomplete = ['b'];
+    incomplete.length = 2;
+    assert.equal(session.submit(incomplete),null);
+    assert.equal(session.submit(['b','\ufeff']),null);
+    assert.equal(session.summary.total,0);
+    assert.equal(session.submit(['b','\ufeffa\u202fB']),false);
+    assert.deepEqual(session.lastGrade,{points:1,total:2,results:[false,true]});
+});

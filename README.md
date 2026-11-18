@@ -1,5 +1,7 @@
 # vocabulary-app
 
+開発状況・仕様決定・凍結項目の共有は [ChatGPT ⇔ Codex 開発引き継ぎ](docs/ai-handoff/README.md) を参照してください。
+
 現在の世界史方針は **新しい別Sheets環境での再構築**です。[docs/HISTORY_REBUILD.md](docs/HISTORY_REBUILD.md) に初期化・候補化・承認・新旧切替と復旧をまとめています。旧430問の管理シート移行は必須ではありません。
 
 世界史分類v1のローカル実装・13列移行準備は [docs/HISTORY_V1_MIGRATION.md](docs/HISTORY_V1_MIGRATION.md) を参照してください。Sheets移行・Bot再起動・公開は別途承認後です。
@@ -26,7 +28,7 @@ Windowsでは既存の `bot/.venv/Scripts/python.exe` と `npm.cmd` を利用で
 
 ## 世界史4択
 
-`history-config.js` の公開専用シートを取得します。管理用シートのURL・サービスアカウント鍵をブラウザに設定しないでください。9列のヘッダーを厳密に確認し、不正行・重複IDを除外します。末尾の解説は空欄でも利用できます。
+`history-config.js` の公開専用シートを取得します。管理用シートのURL・サービスアカウント鍵をブラウザに設定しないでください。旧9列と分類付き13列を検証し、不正行・重複IDを除外します。末尾の解説は空欄でも利用できます。
 
 問題順と選択肢順は学習開始時にシャッフルします。問題数は10・20・30・50・全問から選択し、在庫が少なければその件数で終了します。英単語と共通のボタン・2列表示・正誤CSSを使用し、正答率と回答済み件数、終了時の正解・不正解数を表示します。
 
@@ -36,4 +38,4 @@ Botの公開・削除は [bot/README.md](bot/README.md)、Cloudの手動接続�
 
 属性ラベル・世界史の流れのデータ形式、CSVテンプレート、2形式の架空サンプル、検証・教材追加手順は[データ作成者向け仕様書](docs/STUDY_DATA_SPEC.md)を参照してください。
 
-世界史の流れ専用のDiscord `/flow` 管理コマンド、23列CSV、独立した管理・公開Google Sheets、接続CLI、安全な承認・復旧手順は[連携仕様書](docs/HISTORY_FLOW_SHEETS_BOT.md)を参照してください。既定は静的JSONのままで、本番シートへの接続・投入は別途承認が必要です。
+世界史の流れ専用のDiscord `/flow` 管理コマンド、23列CSV、独立した管理・公開Google Sheets、接続CLI、安全な承認・復旧手順は[連携仕様書](docs/HISTORY_FLOW_SHEETS_BOT.md)を参照してください。本番は専用公開Sheetsを使用します。教材の投入には別途承認が必要です。

@@ -3,11 +3,12 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import '../attribute-tags.js';
 
 export const WEB_FILES = Object.freeze([
     'index.html', 'style.css', 'script.js', 'history-config.js', 'history_questions.js',
     'history-classification.js', 'history-regions.json',
-    'attribute-tags.js', 'history-flow.js', 'history-flow-ui.js', 'history-flow-data.json',
+    'attribute-tags.js', 'choice-dictionary.json', 'history-flow.js', 'history-flow-ui.js', 'history-flow-data.json',
     'history-flow-config.js', 'history-flow-source.js',
     'pwa.js', 'sw.js', 'manifest.json', 'icons/icon-192.png', 'icons/icon-512.png'
 ]);
@@ -34,6 +35,11 @@ export async function buildWeb({ sourceDir = projectRoot, outputDir = path.join(
             throw new Error(`Possible credential in asset: ${name}; contents withheld`);
         }
         files.set(name, content);
+    }
+    try {
+        AttributeTags.dictionary(JSON.parse(files.get('choice-dictionary.json').toString('utf8')));
+    } catch {
+        throw new Error('Invalid choice dictionary; contents withheld');
     }
     if (publicConfig !== null) {
         const allowed=['spreadsheetId','sheetName','expectedIdPrefix','requireCurrentSchema'];

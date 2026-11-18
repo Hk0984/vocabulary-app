@@ -143,9 +143,8 @@ class HistoryBotAsyncTests(unittest.TestCase):
                 await history_bot.repair_publish_batch.callback(interaction, "batch-1")
 
         asyncio.run(exercise())
-        logger.exception.assert_called_once_with(
-            "Unexpected exception during /repair-publish (batch_id=%s)", "batch-1"
-        )
+        logger.error.assert_called_once_with("Unexpected failure during /repair-publish")
+        logger.exception.assert_not_called()
         sent = interaction.followup.send.await_args.args[0]
         self.assertIn("処理に失敗しました", sent)
         self.assertNotIn("internal diagnostic detail", sent)

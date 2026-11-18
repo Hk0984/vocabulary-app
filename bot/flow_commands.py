@@ -91,7 +91,7 @@ def register_flow_commands(host):
                     return store().execute('publish_batch', actor=interaction.user.id, question_id=question_id)
                 plan = await asyncio.to_thread(prepare)
             if not plan['target_count']:
-                await host.send_pages(interaction, '公開対象のdraftがありません。approvedの再公開はquestion_idを指定してください。')
+                await host.send_pages(interaction, '一括公開の対象がありません。空欄問題と作成候補は承認後にquestion_idを指定してください。')
                 return
             summary = f"公開対象：{plan['target_count']}問\n対象ID：\n"+'\n'.join(plan['target_ids'])
             summary += '\n変更：対象をpublishedに変更し、公開用21列へ追加します。既存のpublishedは維持します。'

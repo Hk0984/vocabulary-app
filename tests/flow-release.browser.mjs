@@ -87,7 +87,7 @@ const publicContext={window:{},document:{addEventListener(){}}};
 vm.runInNewContext(await readFile(path.join(root,'script.js'),'utf8'),publicContext);
 const vocabId=vm.runInNewContext('SHEET_ID',publicContext);
 const ids=new Set([flowId,legacy.spreadsheetId,vocabId]);
-const assets=new Set(['','index.html','style.css','script.js','history-config.js','history_questions.js','history-classification.js','history-regions.json','history-flow-config.js','history-flow-source.js','history-flow.js','history-flow-ui.js','history-flow-data.json','attribute-tags.js','pwa.js','sw.js','manifest.json','release.json','icons/icon-192.png','icons/icon-512.png']);
+const assets=new Set(['','index.html','style.css','script.js','history-config.js','history_questions.js','history-classification.js','history-regions.json','history-flow-config.js','history-flow-source.js','history-flow.js','history-flow-ui.js','history-flow-data.json','attribute-tags.js','choice-dictionary.json','pwa.js','sw.js','manifest.json','release.json','icons/icon-192.png','icons/icon-512.png']);
 const evidence={mode:artifact?'local_artifact_at_production_origin':'deployed_production',sheetsGets:0,blockedWrites:0,checks:{}};
 const boot=`window.__ready=[];const add=document.addEventListener.bind(document);document.addEventListener=(n,f,...a)=>{if(n==='DOMContentLoaded')__ready.push(f);else add(n,f,...a);};const wa=window.addEventListener.bind(window);window.addEventListener=(n,...a)=>{if(n!=='load')wa(n,...a);};window.__rows={};const nf=fetch.bind(window);window.fetch=async(...args)=>{const r=await nf(...args);const u=new URL(String(args[0]),location.href);if(r.ok&&u.origin==='https://sheets.googleapis.com'&&u.pathname.includes('/values/')){__rows[u.pathname.split('/')[3]]=(await r.clone().json()).values;}return r;};`;
 async function route(p){
@@ -185,6 +185,6 @@ test('deployed artifact and Service Worker cache',async t=>{
     if(artifact){t.skip('Worker activation is verified after actual deployment');return;}
     const result=await evaluate(`(async()=>{const release=await(await fetch('release.json',{cache:'no-store'})).json();await caches.open('vocab-app:'+location.href+':previous-release');await navigator.serviceWorker.register('sw.js',{scope:'./',updateViaCache:'none'});const registration=await navigator.serviceWorker.ready;const worker=registration.active;if(worker.state!=='activated')await new Promise(resolve=>worker.addEventListener('statechange',()=>{if(worker.state==='activated')resolve();}));return {buildId:release.buildId,files:release.files.map(v=>v.name),caches:await caches.keys()};})()`);
     if(process.env.FLOW_EXPECTED_BUILD_ID)assert.equal(result.buildId,process.env.FLOW_EXPECTED_BUILD_ID);
-    assert.equal(result.files.length,18);assert.ok(result.files.includes('history-flow-config.js'));assert.ok(result.caches.some(k=>k.endsWith(result.buildId)));assert.ok(!result.caches.some(k=>k.endsWith(':previous-release')));
+    assert.equal(result.files.length,result.files.includes('choice-dictionary.json')?19:18);assert.ok(result.files.includes('history-flow-config.js'));assert.ok(result.caches.some(k=>k.endsWith(result.buildId)));assert.ok(!result.caches.some(k=>k.endsWith(':previous-release')));
     evidence.checks.worker=result;
 });
