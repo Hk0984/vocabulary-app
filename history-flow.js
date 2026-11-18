@@ -22,7 +22,7 @@
                     typeof entry.correct !== 'boolean' || Object.keys(entry).length !== 3) fail('空欄の選択肢が不正です');
                 return entry.text;
             }) : blank.accepted;
-            if (values.some(value => !text(value) || value.length > 500) ||
+            if (values.some(value => !text(value) || value.length > 500 || !normalizeAnswer(value)) ||
                 new Set(values.map(normalizeAnswer)).size !== values.length) fail('空欄の選択肢・正答が不正です');
             if (choice && (new Set(blank.choices.map(entry => entry.id)).size !== values.length ||
                 blank.choices.filter(entry => entry.correct).length !== 1)) fail('空欄の正答は1個です');
@@ -82,10 +82,13 @@
                 if(q.type==='contemporary' && !q.choices.some(v=>v.id===answer))return null;
                 if (q.type === 'cloze') {
                     if (!Array.isArray(answer) || answer.length !== q.blanks.length ||
-                        answer.some((value,index) => typeof value !== 'string' ||
-                            (q.blanks[index].mode === 'choice'
-                                ? !q.blanks[index].choices.some(entry => entry.id === value)
-                                : !normalizeAnswer(value) || value.length > 500))) return null;
+                        q.blanks.some((blank,index) => {
+                            const value = answer[index];
+                            if (typeof value !== 'string') return true;
+                            return blank.mode === 'choice'
+                                ? !blank.choices.some(entry => entry.id === value)
+                                : value.length > 500 || !normalizeAnswer(value);
+                        })) return null;
                     const results = q.blanks.map((blank,index) => blank.mode === 'choice'
                         ? blank.choices.some(entry => entry.correct && entry.id === answer[index])
                         : blank.accepted.some(value => normalizeAnswer(value) === normalizeAnswer(answer[index])));

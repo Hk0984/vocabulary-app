@@ -88,6 +88,12 @@ class FlowSchemaTests(unittest.TestCase):
         self.assertEqual(to_question(released[0]),sample)
         with self.assertRaisesRegex(FlowError,'参照'):
             validate_rows([{**row,'question':'{square}と{square}'}])
+        for accepted in [['\ufeff'], ['Ａ\u3000Ｂ', '\ufeffa\u202fb']]:
+            with self.subTest(accepted=accepted), self.assertRaises(FlowError):
+                validate_rows([{**row, 'item2_text': json.dumps({'mode':'input','accepted':accepted})}])
+        long_explanation = '😊' * 5001
+        with self.assertRaisesRegex(FlowError,'10000文字以内'):
+            validate_rows([{**row, 'explanation':long_explanation}])
 
     def test_prepare_cli_references_registered_public_rows_and_never_overwrites(self):
         import json

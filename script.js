@@ -1975,7 +1975,8 @@ function buildAnswerChoices(
         return { keys, number };
     };
 
-    for (const word of words) {
+    if (correctNumber?.requiresReview) reject('registered_source_review');
+    for (const word of correctNumber?.requiresReview ? [] : words) {
         if (word === current) continue;
         let tagRank = 0;
         let sameTag = false;

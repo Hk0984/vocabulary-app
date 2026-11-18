@@ -220,3 +220,35 @@ test("数値辞書のビルド検証は同値・別単位・重なる範囲を�
         }), /型・単位・重複/);
     }
 });
+
+test("複合書式を解釈し、週の矛盾や頻度・年齢条件の違いを選択肢から除く", () => {
+    const { numericFormat, numericMismatch } = context.AttributeTags;
+    const compare = (target, candidate) => numericMismatch(numericFormat(target), numericFormat(candidate));
+    assert.deepEqual(Array.from(numericFormat("第６ヶ月（２０～２３週）").bounds), [20,23]);
+    assert.equal(numericFormat("第６か月（２４～２７週）"), null);
+    assert.equal(numericFormat("第６か月（20～24週）"), null);
+    assert.equal(compare("5年に1度", "５年に１回"), "numeric_equivalent");
+    assert.equal(compare("5年に1度", "5年に2度"), "numeric_unit");
+    assert.equal(compare("5年に1度", "5年"), "numeric_unit");
+    assert.equal(compare("生後1～2週間程度", "生後2～3週間程度"), "numeric_overlap");
+    assert.equal(compare("生後1～2週間程度", "1～2週間程度"), "numeric_shape");
+    assert.equal(numericFormat("5年に0度"), null);
+});
+
+test("原資料を要する複合数値は、同型の実カードがあっても自動補充しない", () => {
+    const tag = "number/gestational_month";
+    const current = {front:"資料に即した時期",back:"第6か月（20～23週）",back_tags:tag};
+    const peer = {front:"別の資料項目",back:"第8か月（28～31週）",back_tags:tag};
+    const diagnostics = {rejected:{}, selected:[]};
+    assert.deepEqual(Array.from(context.buildAnswerChoices(current,[current,peer],"frontToBack",
+        undefined,undefined,dictionary,diagnostics)), [current.back]);
+    assert.equal(diagnostics.rejected.registered_source_review,1);
+});
+
+test("同じ辞書項目に境界が重なる誤答を登録できない", () => {
+    assert.throws(() => context.AttributeTags.dictionary({
+        schema_version:"1.0", tags:{}, synonyms:[],
+        reviewed_numeric:[{tag:"number/example",prompt:"架空の範囲",answer:"10～15日",
+            choices:["20～25日","25～30日"]}],
+    }), /型・単位・重複/);
+});

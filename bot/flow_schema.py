@@ -12,6 +12,8 @@ PUBLIC_HEADERS = ADMIN_HEADERS[:-2]
 STATES = {'draft', 'approved', 'published'}
 GENERATED_SOURCE = 'flow-origin:'
 ID = re.compile(r'[A-Za-z][A-Za-z0-9_-]{0,79}\Z')
+# Keep NFKC, case, and whitespace handling aligned with the web cloze validator.
+WEB_WHITESPACE = re.compile(r'[\u0009-\u000d\u0020\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+')
 
 
 class FlowError(ValueError):
@@ -25,6 +27,11 @@ def check(condition, field, message):
 
 def utf16_length(value):
     return len(value.encode('utf-16-le',errors='surrogatepass')) // 2
+
+
+def normalized_answer(value):
+    value = unicodedata.normalize('NFKC', value).lower()
+    return WEB_WHITESPACE.sub(' ', value).strip(' ')
 
 
 def cloze_blanks(row):
@@ -60,9 +67,10 @@ def cloze_blanks(row):
             values = blank.get('accepted')
             check(set(blank) == {'mode','accepted'} and isinstance(values,list) and 1 <= len(values) <= 4,
                   prefix, '入力正答は1〜4個です')
-        check(all(isinstance(value,str) and value.strip() and utf16_length(value) <= 500 for value in values),
+        check(all(isinstance(value,str) and utf16_length(value) <= 500 for value in values),
               prefix, '選択肢・入力正答は500文字以内です')
-        keys = [' '.join(unicodedata.normalize('NFKC', value).lower().split()) for value in values]
+        keys = [normalized_answer(value) for value in values]
+        check(all(keys), prefix, '空白だけの選択肢・正答は使用できません')
         check(len(set(keys)) == len(values), prefix, '同じ選択肢・正答が複数あります')
         blanks.append({'id':item_id, **blank})
     check(2 <= len(blanks) <= 4 and [blank['id'] for blank in blanks] == placeholders and
@@ -105,6 +113,9 @@ def validate_row(row, management=True):
     except (ValueError, KeyError) as e:
         raise FlowError(f'period_codes/century_codes/area_codes/time_ranges: {e}') from None
     if row['type'] == 'cloze':
+        for key in ('question', 'explanation'):
+            check(bool(normalized_answer(row[key])) and utf16_length(row[key]) <= 10000,
+                  key, '必須・10000文字以内です')
         cloze_blanks(row)
         return row
     ids, texts = [], []

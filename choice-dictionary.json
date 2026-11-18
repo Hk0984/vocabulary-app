@@ -344,6 +344,96 @@
       "choices": [
         "465人"
       ]
+    },
+    {
+      "tag": "number/gestational_range",
+      "prompt": "妊娠初期は一般に何か月から何か月までか。",
+      "answer": "第1～4か月",
+      "choices": [
+        "第5～7か月",
+        "第8～10か月"
+      ]
+    },
+    {
+      "tag": "number/gestational_range",
+      "prompt": "妊娠中期は一般に何か月から何か月までか。",
+      "answer": "第5～7か月",
+      "choices": [
+        "第1～4か月",
+        "第8～10か月"
+      ]
+    },
+    {
+      "tag": "number/gestational_range",
+      "prompt": "妊娠後期は一般に何か月から何か月までか。",
+      "answer": "第8～10か月",
+      "choices": [
+        "第1～4か月",
+        "第5～7か月"
+      ]
+    },
+    {
+      "tag": "number/age_years",
+      "prompt": "幼稚園の入園対象は、何歳からか。",
+      "answer": "満3歳から",
+      "choices": [
+        "満1歳から",
+        "満2歳から"
+      ]
+    },
+    {
+      "tag": "number/age_years",
+      "prompt": "児童福祉法で「児童」は原則何歳未満か。",
+      "answer": "18歳未満",
+      "choices": [
+        "15歳未満",
+        "16歳未満",
+        "20歳未満"
+      ]
+    },
+    {
+      "tag": "number/age_years",
+      "prompt": "高齢化の割合を計算するときに用いる年齢の基準は何歳以上か。",
+      "answer": "65歳以上",
+      "choices": [
+        "60歳以上",
+        "70歳以上"
+      ]
+    },
+    {
+      "tag": "number/duration_years",
+      "prompt": "日本の国勢調査は何年に1度実施されるか。",
+      "answer": "5年に1度",
+      "choices": [
+        "10年に1度"
+      ]
+    },
+    {
+      "tag": "number/duration_days",
+      "prompt": "女性の再婚禁止期間が2022年改正以前の規定では最終的に何日だったか。",
+      "answer": "100日",
+      "choices": [
+        "120日"
+      ]
+    },
+    {
+      "tag": "number/duration_months",
+      "prompt": "かつて女性にのみ設けられた再婚禁止期間は当初何か月だったか。",
+      "answer": "6か月",
+      "choices": [
+        "3か月",
+        "12か月"
+      ]
+    },
+    {
+      "tag": "number/fraction_half",
+      "prompt": "2013年改正以前、非嫡出子の相続分は嫡出子の何分のいくつだったか。",
+      "answer": "2分の1",
+      "choices": [
+        "3分の2",
+        "4分の3",
+        "4分の1"
+      ]
     }
   ]
 }

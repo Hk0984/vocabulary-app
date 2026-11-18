@@ -73,13 +73,13 @@
                 throw Error('レビュー済み数値候補の形式が不正です');
             }
             const target = numericFormat(entry.answer);
-            const seen = new Set([target?.value]);
+            const seen = [target];
             for (const answer of entry.choices) {
                 const number = typeof answer === 'string' && answer.length <= 120 ? numericFormat(answer) : null;
-                if (!target || !number || numericMismatch(target, number) || seen.has(number.value)) {
+                if (!target || !number || seen.some(previous => numericMismatch(previous, number))) {
                     throw Error('レビュー済み数値候補の型・単位・重複が不正です');
                 }
-                seen.add(number.value);
+                seen.push(number);
             }
             const key = numericReviewKey(entry.tag, entry.prompt, entry.answer);
             if (reviewedNumeric.has(key)) throw Error('レビュー済み数値問題が重複しています');
@@ -108,11 +108,25 @@
     function numericFormat(value) {
         const source = String(value ?? '').normalize('NFKC').trim().replaceAll('−', '-')
             .replace(/(?:ヶ|カ|箇)月/g, 'か月');
-        // Keep ordinal and inequality markers in the shape of every choice.
+        const month = /^第([1-9]|10)か月\s*\(\s*(\d{1,2})\s*[~〜–-]\s*(\d{1,2})週\s*\)$/u.exec(source);
+        if (month) {
+            const [ordinal, start, end] = month.slice(1).map(Number);
+            // The ordinal and its four-week annotation must describe the same month.
+            if (start !== 4 * (ordinal - 1) || end !== start + 3) return null;
+            return { unit: 'か月・週', kind: 'gestational_month', shape: '第・併記週',
+                value: String(ordinal), digits: String(ordinal).length, bounds: [start, end], requiresReview: true };
+        }
+        const frequency = /^([1-9]\d{0,5})年に([1-9]\d{0,5})(?:度|回)$/u.exec(source);
+        if (frequency) {
+            const [, period, occurrences] = frequency;
+            return { unit: `年に${occurrences}度`, kind: 'frequency', shape: 'frequency',
+                value: period, digits: period.length, bounds: null, requiresReview: true };
+        }
+        // Keep ordinal, age, and inequality markers in the shape of every choice.
         const text = source.replace(/^(\d+)分の(\d+)(.*)$/u, '$2/$1$3');
         const scalar = /[+-]?(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]+)?/;
         const match = text.match(new RegExp(
-            `^(約|第|満)?\\s*(${scalar.source})(?:\\s*([~〜/–-])\\s*(${scalar.source}))?\\s*([^0-9.,\\s]+)?$`, 'u'
+            `^(約|第|満|生後)?\\s*(${scalar.source})(?:\\s*([~〜/–-])\\s*(${scalar.source}))?\\s*([^0-9.,\\s]+)?$`, 'u'
         ));
         if (!match) return null;
         const [, prefix = '', first, separator = '', second = '', unit = ''] = match;
@@ -146,6 +160,7 @@
             value: comparableValue,
             digits: kind === 'fraction' ? null : Math.max(...parts.map(part => part.whole.length)),
             bounds,
+            requiresReview: prefix === '生後',
         };
     }
 
