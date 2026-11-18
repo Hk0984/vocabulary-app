@@ -174,3 +174,49 @@ test("同じ分数は除外し、全角スラッシュの分数を高難易度�
     assert.equal(context.isCorrectMeaning(target.back,target.back),true);
     assert.deepEqual(Array.from(context.buildAnswerChoices(target, words, "frontToBack")), ["２／４", "1/3"]);
 });
+
+test("レビュー済み数値の候補はタグ・問題文・正答が一致したカードに限り追加する", () => {
+    const back_tags = "number/percent";
+    const card = { id: 2, front: "資料の比率は何%か。", back: "20%", back_tags };
+    const scoped = context.AttributeTags.dictionary({
+        schema_version: "1.0", tags: { [back_tags]: ["60%"] }, synonyms: [],
+        reviewed_numeric: [{ tag: back_tags, prompt: card.front, answer: card.back, choices: ["15%", "45%", "35%"] }],
+    });
+    const diagnostics = { rejected: {}, selected: [] };
+    const options = context.buildAnswerChoices(card, [card], "frontToBack", undefined, undefined, scoped, diagnostics);
+    assert.deepEqual(new Set(options), new Set(["20%", "15%", "45%", "35%"]));
+    assert.deepEqual(diagnostics.selected, ["dictionary", "dictionary", "dictionary"]);
+    for (const changed of [
+        { ...card, front: "別資料の比率は何%か。" },
+        { ...card, back: "21%" },
+        { ...card, back_tags: "number/other_percent" },
+    ]) {
+        assert.deepEqual(Array.from(context.buildAnswerChoices(changed, [changed], "frontToBack", undefined, undefined, scoped)),
+            [changed.back]);
+    }
+});
+
+test("数値候補の単位、範囲の重なり、桁差、分数の同値を除外理由にできる", () => {
+    const { numericFormat, numericMismatch } = context.AttributeTags;
+    const compare = (target, candidate) => numericMismatch(numericFormat(target), numericFormat(candidate));
+    assert.equal(compare("20～24歳", "24～26歳"), "numeric_overlap");
+    assert.equal(compare("20～24歳", "25～29歳"), null);
+    assert.equal(compare("第１～４ヶ月", "第５～７か月"), null);
+    assert.equal(compare("2分の1", "2/4"), "numeric_equivalent");
+    assert.equal(compare("１.０ kg", "2.0g"), "numeric_unit");
+    assert.equal(compare("10kg", "2000kg"), "numeric_magnitude");
+    assert.equal(compare("18歳未満", "20歳以上"), "numeric_unit");
+    assert.equal(numericFormat("30～20歳"), null);
+    assert.equal(numericFormat("0分の1"), null);
+});
+
+test("数値辞書のビルド検証は同値・別単位・重なる範囲を拒否する", () => {
+    for (const [answer, candidate] of [
+        ["2分の1", "2/4"], ["15kg", "13g"], ["20～24歳", "19～22歳"],
+    ]) {
+        assert.throws(() => context.AttributeTags.dictionary({
+            schema_version: "1.0", tags: {}, synonyms: [],
+            reviewed_numeric: [{ tag: "number/example", prompt: "資料の数値", answer, choices: [candidate] }],
+        }), /型・単位・重複/);
+    }
+});

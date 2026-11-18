@@ -1911,8 +1911,13 @@ function buildAnswerChoices(
     format,
     displayedCorrectMeaning,
     displayedMeanings,
-    dictionary = choiceDictionary
+    dictionary = choiceDictionary,
+    diagnostics
 ) {
+    const reject = reason => {
+        if (diagnostics) diagnostics.rejected[reason] = (diagnostics.rejected[reason] ?? 0) + 1;
+        return null;
+    };
     const frontToBack = format === "frontToBack";
     const answerSide = frontToBack ? "back" : "front";
     const questionSide = frontToBack ? "front" : "back";
@@ -1924,7 +1929,10 @@ function buildAnswerChoices(
     const targetQuestion = current[questionSide];
     const normalizedCorrect = normalizeChoiceText(originalCorrectAnswer);
     const normalizedQuestion = normalizeChoiceText(targetQuestion);
-    if (!normalizedCorrect || !normalizeChoiceText(correctAnswer)) return [];
+    if (!normalizedCorrect || !normalizeChoiceText(correctAnswer)) {
+        reject('empty_target');
+        return [];
+    }
 
     const aliases = dictionary?.aliases;
     const correctKeys = meaningKeys(originalCorrectAnswer, frontToBack, aliases);
@@ -1932,32 +1940,39 @@ function buildAnswerChoices(
     let tags = [];
     if (current[tagSide]) {
         try { tags = AttributeTags.parse(current[tagSide]); }
-        catch { return [correctAnswer]; }
+        catch {
+            reject('invalid_target_tags');
+            return [correctAnswer];
+        }
     }
     const numeric = tags.some(tag => tag.startsWith("number/"));
     const correctNumber = numeric ? AttributeTags.numericFormat(correctAnswer) : null;
-    if (numeric && !correctNumber) return [correctAnswer];
+    if (numeric && !correctNumber) {
+        reject('target_numeric_unparsed');
+        return [correctAnswer];
+    }
 
     const exact = [], fillers = [], broader = [];
     const eligible = (answer, original, otherSide) => {
         const normalizedAnswer = normalizeChoiceText(answer);
         const keys = meaningKeys(original, frontToBack, aliases);
-        if (!normalizedAnswer || sharesMeaning(keys, correctKeys) || sharesMeaning(keys, questionKeys)) return null;
+        if (!normalizedAnswer) return reject('empty_candidate');
+        if (sharesMeaning(keys, correctKeys) || sharesMeaning(keys, questionKeys)) return reject('answer_or_alias');
+        const number = correctNumber ? AttributeTags.numericFormat(answer) : null;
         if (correctNumber) {
-            const number = AttributeTags.numericFormat(answer);
-            if (!number || number.unit !== correctNumber.unit || number.shape !== correctNumber.shape ||
-                number.value === correctNumber.value) return null;
+            const mismatch = AttributeTags.numericMismatch(correctNumber, number);
+            if (mismatch) return reject(mismatch);
             keys.add('number:' + number.value);
         } else if (choiceTextSimilarity(normalizedCorrect, normalizedAnswer) >= 0.82) {
-            return null;
+            return reject('answer_similarity');
         }
 
         if (otherSide !== undefined) {
             const otherKeys = meaningKeys(otherSide, !frontToBack, aliases);
             if (sharesMeaning(otherKeys, correctKeys) || sharesMeaning(otherKeys, questionKeys) ||
-                choiceTextSimilarity(normalizedQuestion, otherSide) >= 0.82) return null;
+                choiceTextSimilarity(normalizedQuestion, otherSide) >= 0.82) return reject('related_prompt');
         }
-        return keys;
+        return { keys, number };
     };
 
     for (const word of words) {
@@ -1968,8 +1983,8 @@ function buildAnswerChoices(
             try {
                 tagRank = AttributeTags.rank(current[tagSide], word[tagSide]);
                 sameTag = AttributeTags.parse(word[tagSide]).some(tag => tags.includes(tag));
-            } catch { continue; }
-            if (tagRank < 0) continue;
+            } catch { reject('invalid_candidate_tags'); continue; }
+            if (tagRank < 0) { reject('attribute_mismatch'); continue; }
         }
 
         let answer = word[answerSide];
@@ -1977,11 +1992,11 @@ function buildAnswerChoices(
             if (!displayedMeanings.has(word)) displayedMeanings.set(word, pickDisplayMeaning(answer));
             answer = displayedMeanings.get(word);
         }
-        const keys = eligible(answer, word[answerSide], word[questionSide]);
-        if (!keys) continue;
+        const candidate = eligible(answer, word[answerSide], word[questionSide]);
+        if (!candidate) continue;
 
         (sameTag || !tags.length ? exact : broader).push({
-            answer, keys,
+            answer, ...candidate,
             score: tagRank * 10 + Math.max(
                 choiceTextSimilarity(targetQuestion, word[questionSide]),
                 choiceTextSimilarity(correctAnswer, answer)
@@ -1992,23 +2007,38 @@ function buildAnswerChoices(
     const japanese = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;
     if (dictionary) for (const tag of tags) {
         if (numeric && !tag.startsWith("number/")) continue;
-        for (const answer of dictionary.tags.get(tag) ?? []) {
+        // Numeric dictionary choices require an exact match to the reviewed card.
+        const entries = numeric
+            ? dictionary.reviewedNumeric?.get(AttributeTags.numericReviewKey(tag, targetQuestion, originalCorrectAnswer))
+            : dictionary.tags.get(tag);
+        for (const answer of entries ?? []) {
             // A tag may be used on either side of a bilingual card.
-            if (japanese.test(answer) !== japanese.test(correctAnswer)) continue;
-            const keys = eligible(answer, answer);
-            if (keys) fillers.push({ answer, keys, score: 0 });
+            if (japanese.test(answer) !== japanese.test(correctAnswer)) { reject('dictionary_script'); continue; }
+            const candidate = eligible(answer, answer);
+            if (candidate) fillers.push({ answer, ...candidate, score: 0 });
         }
     }
 
     const choices = [correctAnswer];
     const used = new Set(correctKeys);
-    for (const pool of [exact, fillers, broader]) {
+    const selectedNumbers = [];
+    const pools = { exact, dictionary: fillers, broader };
+    if (diagnostics) diagnostics.eligible = Object.fromEntries(
+        Object.entries(pools).map(([source, pool]) => [source, pool.length])
+    );
+    for (const [source, pool] of Object.entries(pools)) {
         shuffleArray(pool);
         pool.sort((a, b) => b.score - a.score);
         for (const candidate of pool) {
             if (choices.length === 4) return choices;
-            if (sharesMeaning(candidate.keys, used)) continue;
+            if (sharesMeaning(candidate.keys, used)) { reject('selected_duplicate_or_alias'); continue; }
+            if (candidate.number && selectedNumbers.some(number => AttributeTags.numericMismatch(number, candidate.number))) {
+                reject('selected_numeric_overlap');
+                continue;
+            }
             choices.push(candidate.answer);
+            if (diagnostics) diagnostics.selected.push(source);
+            if (candidate.number) selectedNumbers.push(candidate.number);
             for (const key of candidate.keys) used.add(key);
         }
     }

@@ -122,6 +122,41 @@
       "壊す",
       "並べる",
       "集める"
+    ],
+    "organization/government": [
+      "法務省",
+      "外務省",
+      "財務省",
+      "農林水産省",
+      "経済産業省",
+      "国土交通省",
+      "環境省",
+      "防衛省",
+      "デジタル庁",
+      "復興庁",
+      "金融庁",
+      "国税庁",
+      "文化庁",
+      "スポーツ庁",
+      "消防庁",
+      "出入国在留管理庁",
+      "公安調査庁",
+      "中小企業庁",
+      "資源エネルギー庁",
+      "特許庁",
+      "観光庁",
+      "気象庁",
+      "海上保安庁",
+      "林野庁",
+      "水産庁",
+      "防衛装備庁",
+      "原子力規制庁",
+      "公正取引委員会",
+      "個人情報保護委員会",
+      "公害等調整委員会",
+      "国家公安委員会",
+      "運輸安全委員会",
+      "会計検査院"
     ]
   },
   "synonyms": [
@@ -151,5 +186,164 @@
       "ソウル",
       "ソウル特別市"
     ]
+  ],
+  "reviewed_numeric": [
+    {
+      "tag": "number/energy_kcal_per_g",
+      "prompt": "糖質1gから得られるエネルギーは何kcalか。",
+      "answer": "4kcal",
+      "choices": [
+        "2kcal",
+        "7kcal",
+        "9kcal"
+      ]
+    },
+    {
+      "tag": "number/energy_kcal_per_g",
+      "prompt": "脂質1gから得られるエネルギーは何kcalか。",
+      "answer": "9kcal",
+      "choices": [
+        "2kcal",
+        "4kcal",
+        "7kcal"
+      ]
+    },
+    {
+      "tag": "number/energy_kcal_per_g",
+      "prompt": "たんぱく質1gから得られるエネルギーは何kcalか。",
+      "answer": "4kcal",
+      "choices": [
+        "2kcal",
+        "7kcal",
+        "9kcal"
+      ]
+    },
+    {
+      "tag": "number/mass_kg",
+      "prompt": "プリントの例で、新生児の体重はおよそ何kgか。",
+      "answer": "約3kg",
+      "choices": [
+        "約9kg"
+      ]
+    },
+    {
+      "tag": "number/mass_kg",
+      "prompt": "プリントの例で、1歳児の体重はおよそ何kgか。",
+      "answer": "約9kg",
+      "choices": [
+        "約3kg"
+      ]
+    },
+    {
+      "tag": "number/percent",
+      "prompt": "高齢化社会の基準となる65歳以上人口の割合は何%か。",
+      "answer": "7%",
+      "choices": [
+        "14%",
+        "21%"
+      ]
+    },
+    {
+      "tag": "number/percent",
+      "prompt": "高齢社会の基準となる65歳以上人口の割合は何%か。",
+      "answer": "14%",
+      "choices": [
+        "7%",
+        "21%"
+      ]
+    },
+    {
+      "tag": "number/percent",
+      "prompt": "超高齢社会の基準となる65歳以上人口の割合は何%か。",
+      "answer": "21%",
+      "choices": [
+        "7%",
+        "14%"
+      ]
+    },
+    {
+      "tag": "number/duration_years",
+      "prompt": "プリント掲載の男性の平均寿命と健康寿命の差は何年か。",
+      "answer": "8.31年",
+      "choices": [
+        "12.99年"
+      ]
+    },
+    {
+      "tag": "number/duration_years",
+      "prompt": "プリント掲載の女性の平均寿命と健康寿命の差は何年か。",
+      "answer": "12.99年",
+      "choices": [
+        "8.31年"
+      ]
+    },
+    {
+      "tag": "number/duration_years",
+      "prompt": "衆議院議員の任期は何年か。",
+      "answer": "4年",
+      "choices": [
+        "6年"
+      ]
+    },
+    {
+      "tag": "number/duration_years",
+      "prompt": "参議院議員の任期は何年か。",
+      "answer": "6年",
+      "choices": [
+        "4年"
+      ]
+    },
+    {
+      "tag": "number/kinship_degree",
+      "prompt": "民法上の親族は、何親等内の血族まで含むか。",
+      "answer": "6親等内",
+      "choices": [
+        "3親等内"
+      ]
+    },
+    {
+      "tag": "number/kinship_degree",
+      "prompt": "民法上の親族は、何親等内の姻族まで含むか。",
+      "answer": "3親等内",
+      "choices": [
+        "6親等内"
+      ]
+    },
+    {
+      "tag": "number/fraction_half",
+      "prompt": "配偶者と子が相続人の場合、法定相続分で配偶者が受け取る割合はどれだけか。",
+      "answer": "2分の1",
+      "choices": [
+        "3分の2",
+        "4分の3",
+        "4分の1"
+      ]
+    },
+    {
+      "tag": "number/fraction_half",
+      "prompt": "配偶者と子が相続人の場合、法定相続分で子全員が受け取る割合はどれだけか。",
+      "answer": "2分の1",
+      "choices": [
+        "3分の2",
+        "4分の3",
+        "4分の1"
+      ]
+    },
+    {
+      "tag": "number/seat_count",
+      "prompt": "衆議院議員の定数は何人か。",
+      "answer": "465人",
+      "choices": [
+        "248人"
+      ]
+    },
+    {
+      "tag": "number/seat_count",
+      "prompt": "参議院議員の定数は何人か。",
+      "answer": "248人",
+      "choices": [
+        "465人"
+      ]
+    }
   ]
 }
