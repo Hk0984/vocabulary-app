@@ -10,6 +10,8 @@ GitHub の `docs/ai-handoff/` を引き継ぎの共通参照先とします。�
 | [DECISIONS.md](DECISIONS.md) | 有効な決定、採用理由、保留案、仕様変更履歴 |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 現在のデータ経路、運用、互換性制約 |
 
+次段階の定量比較・照合・依存監査・実機確認資料は [バックログ](BACKLOG.md#次段階の追跡資料) から参照できます。
+
 ## ChatGPT から Codex へ
 
 1. 候補仕様を検討し、決定事項、未決事項、該当するバックログID、承認済み操作を区別して渡します。
