@@ -210,3 +210,20 @@ tests/web-build.test.mjs
 ```
 
 データ検証・初期教材、Bot/Sheets管理、Web連携・運用仕様の3つのローカルコミットに分割しています。開始時に存在した未追跡ファイルは含めていません。
+
+## 複数空欄と登録教材からの作成支援
+
+静的JSON 1.1と専用Sheetsの `cloze` 行を検証できます。列を追加せず、 `itemN_id` に空欄ID、 `itemN_text` に `id` を除いた空欄オブジェクトをJSONとして格納します。使用する空欄は先頭から連続させ、項目の年代欄と共通の `answer` は空欄です。 [形式・動作サンプル](STUDY_DATA_SPEC.md#複数空欄補充11)
+
+登録済みの公開13列CSVとローカルのレシピから、管理23列の `draft` CSVを作れます。
+
+```sh
+python scripts/manage-flow.py prepare --csv registered-public.csv --recipe recipe.json --out review-draft.csv
+python scripts/manage-flow.py validate --csv review-draft.csv
+```
+
+レシピはJSON 1.1と同名の項目を使います。同時代・因果・地域関係は `contemporary`、年代順は `ordering`、複数空欄は `cloze` として作成できます。選択肢・出来事の `text` を `"from": "登録済みID"` に置き換えると、その登録問題の正答文を使います。入力式の `accepted` 内でも `{"from":"登録済みID"}` を使えます。1問につき少なくとも1つの参照が必要です。作者は問題文、解説、因果関係や地域間の関係、正答、分類、必要な年代を明示して確認してください。
+
+`prepare` はSheetsに接続せず、既存ファイルを上書きせず、出典IDを管理側だけに保存します。管理者は `/flow import`、`/flow show`、`/flow approve` の順で内容を確認し、`/flow publish question_id:...` の差分を見て確認ボタンを押します。空欄・作成支援のdraftは一括公開から除外され、個別指定でも未承認のまま公開できません。
+
+本番に適用する際は、空欄形式を読めるWebとBotを先に検証・公開し、更新済みのService Workerへの切替も確認し、その後、承認済みの空欄教材を投入してください。旧Webは新形式の公開行を認識できません。旧Webへ戻す場合は、空欄教材の公開取り消しを管理者が先に確認します。

@@ -49,24 +49,72 @@
     }
     function render() {
         const session=active, page=pageGeneration, q=session.current;
-        const live=()=>active===session&&pageGeneration===page;
+        const live=()=>active===session&&pageGeneration===page&&session.current===q;
         const container=el('flowChoices');container.replaceChildren();el('flowNext').hidden=true;el('flowExplanation').textContent='';
         if(!q){
             const s=session.summary;el('flowQuiz').hidden=true;el('flowActions').hidden=false;
             say(`出題数 ${s.total}問／正解 ${s.correct}問／不正解 ${s.incorrect}問／正答率 ${s.accuracy}%`);return;
         }
-        say(`${session.summary.total+1}問目`);el('flowQuestion').textContent=q.question;
+        say(`${session.summary.total+1}問目`);el('flowQuestion').textContent=q.type === 'cloze'
+            ? q.question.replace(/\{[^{}]+\}/g, token => '（' + (q.blanks.findIndex(blank => token === '{'+blank.id+'}') + 1) + '）')
+            : q.question;
         const options=session.options(), selected=[];
         const result=answer=>{
             if(!live())return;
             const correct=session.submit(answer);if(correct===null)return;
             container.querySelectorAll('button').forEach(b=>{b.disabled=true;});
+            if (q.type === 'cloze') {
+                const answers = q.blanks.map(blank => blank.mode === 'choice'
+                    ? blank.choices.find(entry => entry.correct).text : blank.accepted[0]);
+                const completed = q.question.replace(/\{([^{}]+)\}/g, (_,id) => answers[q.blanks.findIndex(blank => blank.id === id)]);
+                const grade = session.lastGrade;
+                const details = grade.results.map((ok,i) => `${i+1}番 ${ok?'正解':'不正解'}`).join('／');
+                el('flowExplanation').textContent = `空欄 ${grade.points}/${grade.total} 正解（${details}）\n${completed}\n${q.explanation}`;
+                el('flowNext').hidden = false;
+                return;
+            }
             const items=q.choices||q.events, answerIds=Array.isArray(q.answer)?q.answer:[q.answer];
             el('flowExplanation').textContent=(correct?'正解です。':'不正解です。')+' 正解：'+answerIds.map(id=>items.find(v=>v.id===id).text).join(' → ')+'\n'+q.explanation;
             el('flowNext').hidden=false;
         };
         if(q.type==='contemporary')for(const item of options)button(item.text,()=>result(item.id));
-        else {
+        else if (q.type === 'cloze') {
+            const controls = q.blanks.map((blank,i) => {
+                const label = document.createElement('label');
+                label.textContent = `空欄 ${i+1}`;
+                label.className = 'flow-blank';
+                const control = document.createElement(blank.mode === 'choice' ? 'select' : 'input');
+                if (blank.mode === 'choice') {
+                    const placeholder = document.createElement('option');
+                    placeholder.textContent = '選択してください';
+                    placeholder.value = '';
+                    control.appendChild(placeholder);
+                    for (const item of root.HistoryFlow.shuffle(blank.choices)) {
+                        const option = document.createElement('option');
+                        option.value = item.id;
+                        option.textContent = item.text;
+                        control.appendChild(option);
+                    }
+                } else {
+                    control.type = 'text';
+                    control.maxLength = 500;
+                    control.autocomplete = 'off';
+                }
+                label.appendChild(control);
+                container.appendChild(label);
+                return control;
+            });
+            const submit = button('回答確定', () => {
+                result(controls.map(control => control.value));
+                if (session.answered) controls.forEach(control => { control.disabled = true; });
+            });
+            const refresh = () => { submit.disabled = controls.some(control => !control.value.trim()); };
+            controls.forEach(control => {
+                control.addEventListener('input',refresh);
+                control.addEventListener('change',refresh);
+            });
+            refresh();
+        } else {
             const order=document.createElement('p');order.setAttribute('aria-live','polite');container.appendChild(order);
             const buttons=[];
             const refresh=()=>{order.textContent='選択順：'+selected.map((id,i)=>`${i+1}. ${q.events.find(v=>v.id===id).text}`).join(' → ');buttons.forEach(([b,id])=>{b.disabled=selected.includes(id);});submit.disabled=selected.length!==options.length;};

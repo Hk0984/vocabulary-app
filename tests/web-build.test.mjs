@@ -52,14 +52,15 @@ async function filesIn(dir, prefix = '') {
 
 test('artifact contains exactly the reviewed web assets and excludes operational directories', async t => {
     const options = await fixture(t);
-    for (const name of ['bot/operations.txt', 'tests/private-fixture.txt', 'node_modules/example.txt', 'local-config.txt']) {
+    for (const name of ['bot/operations.txt', 'docs/ai-handoff/HANDOFF.md',
+        'scripts/print-ai-handoff.mjs', 'tests/private-fixture.txt', 'node_modules/example.txt', 'local-config.txt']) {
         await mkdir(path.dirname(path.join(options.sourceDir, name)), {recursive:true});
         await writeFile(path.join(options.sourceDir, name), 'not for publication');
     }
     const result = await buildWeb(options);
     const expected = ['index.html','style.css','script.js','history-config.js','history_questions.js',
         'history-classification.js','history-regions.json',
-        'attribute-tags.js','history-flow.js','history-flow-ui.js','history-flow-data.json',
+        'attribute-tags.js','choice-dictionary.json','history-flow.js','history-flow-ui.js','history-flow-data.json',
         'history-flow-config.js','history-flow-source.js',
         'pwa.js','sw.js','manifest.json','icons/icon-192.png','icons/icon-512.png','release.json'].sort();
     assert.deepEqual(await filesIn(options.outputDir), expected);
@@ -178,7 +179,7 @@ test('new public environment build changes only public connection and retains th
     assert.equal(context.window.HISTORY_QUESTIONS_CONFIG.expectedIdPrefix,'hv1_rebuild1_');
     assert.equal(context.window.HISTORY_QUESTIONS_CONFIG.apiKey,'test-public-key');
     assert.equal(await readFile(path.join(options.sourceDir,'history-config.js'),'utf8'),config);
-    assert.equal((await filesIn(options.outputDir)).length,19);
+    assert.equal((await filesIn(options.outputDir)).length,20);
     await buildWeb({...options,outputDir:path.join(options.dir,'rollback')});
     assert.equal(await readFile(path.join(options.dir,'rollback/history-config.js'),'utf8'),config);
 });

@@ -6,6 +6,25 @@
     class SourceError extends Error {}
     function toQuestion(row) {
         const q = Object.fromEntries(['id','type','question','explanation','period_codes','century_codes','area_codes','time_ranges'].map(k=>[k,row[k]]));
+        if (row.type === 'cloze') {
+            if (row.answer) throw new SourceError('空欄補充行に共通の正答欄は使用できません。');
+            q.blanks = [];
+            for (const i of [1,2,3,4]) {
+                const id = row[`item${i}_id`], text = row[`item${i}_text`], dates = row[`item${i}_time_ranges`];
+                if (!id && !text && !dates) continue;
+                if (dates || !id || !text || text.length > 10000 || i !== q.blanks.length + 1) {
+                    throw new SourceError('空欄補充行の項目が不正です。');
+                }
+                let blank;
+                try { blank = JSON.parse(text); }
+                catch { throw new SourceError('空欄データのJSON形式が不正です。'); }
+                if (!blank || typeof blank !== 'object' || Array.isArray(blank) || Object.hasOwn(blank,'id')) {
+                    throw new SourceError('空欄データのオブジェクト形式が不正です。');
+                }
+                q.blanks.push({ ...blank, id });
+            }
+            return q;
+        }
         q.answer = row.type==='ordering'?row.answer.split(';'):row.answer;
         const items=[];
         for(const i of [1,2,3,4]) {
@@ -25,7 +44,7 @@
             if(HEADERS.some(k=>!k.endsWith('time_ranges') && /^[=+@-]/.test(row[k].trimStart())))throw new SourceError('公開シートに式として解釈され得る入力があります。');
             questions.push(toQuestion(row));
         }
-        const loaded=root.HistoryFlow.load({schema_version:'1.0',questions},master);
+        const loaded=root.HistoryFlow.load({schema_version:questions.some(q => q.type === 'cloze')?'1.1':'1.0',questions},master);
         if(loaded.errors.length)throw new SourceError('公開問題に不正データまたは重複IDがあります。出題を停止しました。管理者に検証を依頼してください。');
         return loaded;
     }

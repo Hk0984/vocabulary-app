@@ -66,3 +66,52 @@ class FlowSchemaTests(unittest.TestCase):
         row.update({f'item4_{key}':'' for key in ['id','text','time_ranges']})
         row['answer'] = ';'.join(k for k in row['answer'].split(';') if k!=removed)
         self.assertEqual(len(to_question(validate_rows([row])[0])['events']), 3)
+
+    def test_cloze_keeps_columns_and_requires_approval_for_publish(self):
+        import json
+        from flow_store import plan_operation
+        sample = json.loads((ROOT/'templates/history-flow-cloze.sample.json').read_text())['questions'][0]
+        row = dict.fromkeys(ADMIN_HEADERS, '')
+        row.update((key,value) for key,value in sample.items() if key in row)
+        row['status'] = 'draft'
+        for index, blank in enumerate(sample['blanks'], 1):
+            row[f'item{index}_id'] = blank['id']
+            row[f'item{index}_text'] = json.dumps({k:v for k,v in blank.items() if k!='id'},ensure_ascii=False)
+        self.assertEqual(parse_csv(csv_bytes([row]),True),[row])
+        self.assertEqual(to_question(row),sample)
+        self.assertEqual(plan_operation([row],[],'publish_batch',actor='test')[0]['target_count'],0)
+        with self.assertRaisesRegex(FlowError, '承認'):
+            plan_operation([row],[],'publish_batch',actor='test',question_id=row['id'])
+        _, approved, _ = plan_operation([row],[],'approve',actor='test',question_id=row['id'],reviewed=True)
+        _, _, released = plan_operation(approved,[],'publish_batch',actor='test',question_id=row['id'])
+        self.assertEqual(list(released[0]),PUBLIC_HEADERS)
+        self.assertEqual(to_question(released[0]),sample)
+        with self.assertRaisesRegex(FlowError,'参照'):
+            validate_rows([{**row,'question':'{square}と{square}'}])
+
+    def test_prepare_cli_references_registered_public_rows_and_never_overwrites(self):
+        import json
+        import subprocess
+        import tempfile
+        from history_classification import HEADERS
+        from flow_store import plan_operation
+        sample = json.loads((ROOT/'templates/history-flow-cloze.sample.json').read_text())['questions'][0]
+        sample['blanks'][0]['choices'][0].pop('text')
+        sample['blanks'][0]['choices'][0]['from'] = 'prior_question'
+        with tempfile.TemporaryDirectory() as tmp:
+            source, recipe, out = (Path(tmp)/name for name in ('source.csv','recipe.json','draft.csv'))
+            with source.open('w',encoding='utf-8',newline='') as handle:
+                writer = csv.writer(handle)
+                writer.writerow(HEADERS)
+                writer.writerow(['prior_question','s1','会議はどこで開かれたか','広場','港','市場','道路','1','',
+                                 'unclassified','','unclassified',''])
+            recipe.write_text(json.dumps({'schema_version':'1.1','questions':[sample]},ensure_ascii=False),encoding='utf-8')
+            cmd = [sys.executable,str(ROOT/'scripts/manage-flow.py'),'prepare','--csv',str(source),'--recipe',str(recipe),'--out',str(out)]
+            subprocess.run(cmd,check=True,capture_output=True)
+            draft = parse_csv(out.read_bytes(),True)[0]
+            self.assertEqual(draft['source'],'flow-origin:prior_question')
+            self.assertEqual(to_question(draft)['blanks'][0]['choices'][0]['text'],'広場')
+            with self.assertRaisesRegex(FlowError, '承認'):
+                plan_operation([draft],[],'publish_batch',actor='test',question_id=draft['id'])
+            self.assertNotEqual(subprocess.run(cmd,capture_output=True).returncode,0)
+            self.assertEqual(parse_csv(out.read_bytes(),True),[draft])

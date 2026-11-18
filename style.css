@@ -1,3 +1,46 @@
+:root {
+    color-scheme: light;
+    --canvas: #f5f7fa;
+    --surface: #fff;
+    --surface-hover: #f5f5f5;
+    --surface-subtle: #f7f7f7;
+    --text: #222;
+    --muted: #626262;
+    --border: #ddd;
+    --control-border: #888;
+    --focus: #555;
+    --primary: #333;
+    --primary-hover: #222;
+    --primary-text: #fff;
+    --primary-muted: #ddd;
+    --correct-bg: #e8f5e9;
+    --correct-border: #338237;
+    --incorrect-bg: #ffebee;
+    --incorrect-border: #bd342b;
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        color-scheme: dark;
+        --canvas: #12171f;
+        --surface: #1b2430;
+        --surface-hover: #303e4e;
+        --surface-subtle: #232f3e;
+        --text: #f1f4f8;
+        --muted: #bdcadd;
+        --border: #526279;
+        --control-border: #7588a1;
+        --focus: #a1c7ff;
+        --primary: #bdd6fa;
+        --primary-hover: #d5e5ff;
+        --primary-text: #132034;
+        --primary-muted: #334865;
+        --correct-bg: #20452f;
+        --correct-border: #70cc91;
+        --incorrect-bg: #542a32;
+        --incorrect-border: #f6a0a8;
+    }
+}
+
 /* =========================
    全体
 ========================= */
@@ -23,8 +66,8 @@ body {
         Meiryo,
         sans-serif;
 
-    background: #f5f7fa;
-    color: #222;
+    background: var(--canvas);
+    color: var(--text);
     line-height: 1.6;
 }
 
@@ -40,8 +83,8 @@ header {
 
     padding: 14px 20px;
 
-    background: #ffffff;
-    border-bottom: 1px solid #ddd;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
 
     position: sticky;
     top: 0;
@@ -71,11 +114,11 @@ nav button,
     min-height: 40px;
     padding: 8px 12px;
 
-    border: 1px solid #ccc;
+    border: 1px solid var(--control-border);
     border-radius: 7px;
 
-    background: #fff;
-    color: #333;
+    background: var(--surface);
+    color: var(--text);
 
     font-size: 14px;
     cursor: pointer;
@@ -85,7 +128,7 @@ nav button,
 
 nav button:hover,
 .header-auth-button:hover {
-    background: #f0f0f0;
+    background: var(--surface-hover);
 }
 
 
@@ -125,8 +168,8 @@ main button {
     border: none;
     border-radius: 8px;
 
-    background: #333;
-    color: #fff;
+    background: var(--primary);
+    color: var(--primary-text);
 
     font-size: 15px;
     font-weight: 600;
@@ -137,7 +180,7 @@ main button {
 }
 
 main button:hover:not(:disabled) {
-    background: #222;
+    background: var(--primary-hover);
 }
 
 
@@ -152,9 +195,9 @@ main button:hover:not(:disabled) {
     margin: 30px auto;
     padding: 32px 28px;
 
-    background: #fff;
+    background: var(--surface);
 
-    border: 1px solid #ddd;
+    border: 1px solid var(--border);
     border-radius: 12px;
 
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -179,7 +222,7 @@ main button:hover:not(:disabled) {
     margin: 18px 0;
     padding: 12px 14px;
 
-    background: #f5f5f5;
+    background: var(--surface-hover);
     border-radius: 8px;
 
     font-size: 13px;
@@ -192,23 +235,23 @@ main button:hover:not(:disabled) {
 .secondary-button {
     margin-top: 8px;
 
-    background: #fff !important;
-    color: #333 !important;
+    background: var(--surface) !important;
+    color: var(--text) !important;
 
-    border: 1px solid #ccc !important;
+    border: 1px solid var(--control-border) !important;
 }
 
 .secondary-button:hover:not(:disabled) {
-    background: #f5f5f5 !important;
+    background: var(--surface-hover) !important;
 }
 
 .back-button {
     margin-top: 8px;
 
-    background: #fff !important;
-    color: #555 !important;
+    background: var(--surface) !important;
+    color: var(--muted) !important;
 
-    border: 1px solid #ccc !important;
+    border: 1px solid var(--control-border) !important;
 }
 
 .auth-form {
@@ -230,11 +273,11 @@ main button:hover:not(:disabled) {
     min-height: 44px;
     padding: 9px 11px;
 
-    border: 1px solid #ccc;
+    border: 1px solid var(--control-border);
     border-radius: 7px;
 
-    background: #fff;
-    color: #222;
+    background: var(--surface);
+    color: var(--text);
 
     font-family: inherit;
     font-size: 15px;
@@ -242,7 +285,7 @@ main button:hover:not(:disabled) {
 
 .auth-form input:focus {
     outline: none;
-    border-color: #555;
+    border-color: var(--focus);
 }
 
 .auth-message {
@@ -265,9 +308,9 @@ main button:hover:not(:disabled) {
     margin: 20px auto;
     padding: 28px;
 
-    background: #fff;
+    background: var(--surface);
 
-    border: 1px solid #ddd;
+    border: 1px solid var(--border);
     border-radius: 12px;
 
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -289,25 +332,25 @@ main button:hover:not(:disabled) {
 #sheetList button {
     text-align: left;
 
-    background: #fff;
-    color: #333;
+    background: var(--surface);
+    color: var(--text);
 
-    border: 1px solid #ccc;
+    border: 1px solid var(--control-border);
 }
 
 #sheetList button:hover:not(:disabled) {
-    background: #f5f5f5;
+    background: var(--surface-hover);
 }
 
 #sheetList button.selected {
-    background: #333;
-    color: #fff;
-    border-color: #333;
+    background: var(--primary);
+    color: var(--primary-text);
+    border-color: var(--primary);
 }
 
 .loading {
     margin: 10px 0;
-    color: #777;
+    color: var(--muted);
 }
 
 
@@ -322,9 +365,9 @@ main button:hover:not(:disabled) {
     margin: 20px auto;
     padding: 28px;
 
-    background: #fff;
+    background: var(--surface);
 
-    border: 1px solid #ddd;
+    border: 1px solid var(--border);
     border-radius: 12px;
 
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -365,10 +408,10 @@ main button:hover:not(:disabled) {
 
     padding: 11px 13px;
 
-    background: #fff !important;
-    color: #333 !important;
+    background: var(--surface) !important;
+    color: var(--text) !important;
 
-    border: 1px solid #ccc !important;
+    border: 1px solid var(--control-border) !important;
     border-radius: 8px;
 
     text-align: left;
@@ -381,20 +424,20 @@ main button:hover:not(:disabled) {
 .setting-option span {
     margin-top: 2px;
 
-    color: #777;
+    color: var(--muted);
     font-size: 12px;
     font-weight: 400;
 }
 
 .setting-option.selected {
-    background: #333 !important;
-    color: #fff !important;
+    background: var(--primary) !important;
+    color: var(--primary-text) !important;
 
-    border-color: #333 !important;
+    border-color: var(--primary) !important;
 }
 
 .setting-option.selected span {
-    color: #ddd;
+    color: var(--primary-muted);
 }
 
 .settings-message {
@@ -426,9 +469,9 @@ main button:hover:not(:disabled) {
     margin-top: 10px;
     padding: 12px;
 
-    background: #f7f7f7;
+    background: var(--surface-subtle);
 
-    border: 1px solid #ddd;
+    border: 1px solid var(--border);
     border-radius: 8px;
 
     font-size: 14px;
@@ -445,11 +488,11 @@ main button:hover:not(:disabled) {
     min-height: 40px;
     padding: 7px 9px;
 
-    border: 1px solid #ccc;
+    border: 1px solid var(--control-border);
     border-radius: 6px;
 
-    background: #fff;
-    color: #222;
+    background: var(--surface);
+    color: var(--text);
 
     font-family: inherit;
     font-size: 14px;
@@ -457,12 +500,12 @@ main button:hover:not(:disabled) {
 
 .id-range-inputs input:focus {
     outline: none;
-    border-color: #555;
+    border-color: var(--focus);
 }
 
 .id-range-inputs span {
     text-align: center;
-    color: #666;
+    color: var(--muted);
 }
 
 
@@ -480,9 +523,9 @@ main button:hover:not(:disabled) {
     margin-bottom: 12px;
     padding: 12px 14px;
 
-    background: #fff;
+    background: var(--surface);
 
-    border: 1px solid #ddd;
+    border: 1px solid var(--border);
     border-radius: 8px;
 }
 
@@ -500,16 +543,16 @@ main button:hover:not(:disabled) {
 
     padding: 6px 10px !important;
 
-    background: #fff !important;
-    color: #333 !important;
+    background: var(--surface) !important;
+    color: var(--text) !important;
 
-    border: 1px solid #ccc !important;
+    border: 1px solid var(--control-border) !important;
 
     font-size: 13px !important;
 }
 
 .change-sheet-button:hover {
-    background: #f5f5f5 !important;
+    background: var(--surface-hover) !important;
 }
 
 .session-info {
@@ -519,7 +562,7 @@ main button:hover:not(:disabled) {
     margin-bottom: 10px;
 
     font-size: 14px;
-    color: #555;
+    color: var(--muted);
 }
 
 
@@ -533,9 +576,9 @@ main button:hover:not(:disabled) {
     margin-bottom: 10px;
     padding: 24px 18px;
 
-    background: #fff;
+    background: var(--surface);
 
-    border: 1px solid #ddd;
+    border: 1px solid var(--border);
     border-radius: 10px;
 
     text-align: center;
@@ -547,7 +590,7 @@ main button:hover:not(:disabled) {
 .quiz-direction {
     margin-bottom: 8px;
 
-    color: #777;
+    color: var(--muted);
 
     font-size: 13px;
 }
@@ -585,10 +628,10 @@ main button:hover:not(:disabled) {
 
     padding: 13px 15px;
 
-    background: #fff;
-    color: #333;
+    background: var(--surface);
+    color: var(--text);
 
-    border: 1px solid #ccc;
+    border: 1px solid var(--control-border);
     border-radius: 8px;
 
     font-size: 16px;
@@ -605,17 +648,17 @@ main button:hover:not(:disabled) {
 }
 
 .choice:hover:not(:disabled) {
-    background: #f5f5f5;
+    background: var(--surface-hover);
 }
 
 .choice.correct {
-    background: #e8f5e9;
-    border-color: #4caf50;
+    background: var(--correct-bg);
+    border-color: var(--correct-border);
 }
 
 .choice.incorrect {
-    background: #ffebee;
-    border-color: #f44336;
+    background: var(--incorrect-bg);
+    border-color: var(--incorrect-border);
 }
 
 .choice:disabled {
@@ -651,14 +694,14 @@ main button:hover:not(:disabled) {
 }
 
 #reviewButton {
-    background: #fff !important;
-    color: #333 !important;
+    background: var(--surface) !important;
+    color: var(--text) !important;
 
-    border: 1px solid #ccc !important;
+    border: 1px solid var(--control-border) !important;
 }
 
 #reviewButton:hover {
-    background: #f5f5f5 !important;
+    background: var(--surface-hover) !important;
 }
 
 
@@ -679,16 +722,16 @@ main button:hover:not(:disabled) {
 .stat {
     padding: 14px 10px;
 
-    background: #fff;
+    background: var(--surface);
 
-    border: 1px solid #ddd;
+    border: 1px solid var(--border);
     border-radius: 8px;
 
     text-align: center;
 }
 
 .stat-label {
-    color: #777;
+    color: var(--muted);
     font-size: 12px;
 }
 
@@ -712,9 +755,9 @@ main button:hover:not(:disabled) {
 .bucket {
     padding: 14px 10px;
 
-    background: #fff;
+    background: var(--surface);
 
-    border: 1px solid #ddd;
+    border: 1px solid var(--border);
     border-radius: 8px;
 
     text-align: center;
@@ -756,10 +799,10 @@ main button:hover:not(:disabled) {
 
     padding: 6px 8px;
 
-    border: 1px solid #ccc;
+    border: 1px solid var(--control-border);
     border-radius: 6px;
 
-    background: #fff;
+    background: var(--surface);
 
     font-family: inherit;
     font-size: 13px;
@@ -787,9 +830,9 @@ main button:hover:not(:disabled) {
 
     padding: 11px 12px;
 
-    background: #fff;
+    background: var(--surface);
 
-    border: 1px solid #ddd;
+    border: 1px solid var(--border);
     border-radius: 8px;
 
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
@@ -806,7 +849,7 @@ main button:hover:not(:disabled) {
 .word-progress-item .progress {
     flex-shrink: 0;
 
-    color: #666;
+    color: var(--muted);
 
     font-size: 12px;
     text-align: right;
@@ -828,9 +871,9 @@ main button:hover:not(:disabled) {
 
     padding: 10px 12px;
 
-    background: #fff;
+    background: var(--surface);
 
-    border: 1px solid #ddd;
+    border: 1px solid var(--border);
     border-radius: 8px;
 
     overflow-wrap: anywhere;
@@ -855,21 +898,21 @@ main button:hover:not(:disabled) {
 
     text-align: left;
 
-    background: #fff;
-    color: #333;
+    background: var(--surface);
+    color: var(--text);
 
-    border: 1px solid #ccc;
+    border: 1px solid var(--control-border);
 }
 
 #progressSheetList button:hover:not(:disabled) {
-    background: #f5f5f5;
+    background: var(--surface-hover);
 }
 
 #progressSheetList button.selected {
-    background: #333;
-    color: #fff;
+    background: var(--primary);
+    color: var(--primary-text);
 
-    border-color: #333;
+    border-color: var(--primary);
 }
 
 
@@ -878,14 +921,14 @@ main button:hover:not(:disabled) {
 ========================= */
 
 #resetButton {
-    background: #fff !important;
-    color: #555 !important;
+    background: var(--surface) !important;
+    color: var(--muted) !important;
 
-    border: 1px solid #ccc !important;
+    border: 1px solid var(--control-border) !important;
 }
 
 #resetButton:hover {
-    background: #f5f5f5 !important;
+    background: var(--surface-hover) !important;
 }
 
 
@@ -901,7 +944,7 @@ main button:hover:not(:disabled) {
     margin-top: 12px;
     margin-bottom: 3px;
 
-    color: #777;
+    color: var(--muted);
 
     font-size: 13px;
 }
@@ -909,7 +952,7 @@ main button:hover:not(:disabled) {
 .account-email {
     padding: 9px 10px;
 
-    background: #f7f7f7;
+    background: var(--surface-subtle);
 
     border-radius: 6px;
 
@@ -927,10 +970,10 @@ main button:hover:not(:disabled) {
 .account-logout-button {
     margin-top: 8px;
 
-    background: #fff !important;
-    color: #555 !important;
+    background: var(--surface) !important;
+    color: var(--muted) !important;
 
-    border: 1px solid #ccc !important;
+    border: 1px solid var(--control-border) !important;
 }
 
 
@@ -1378,7 +1421,7 @@ main button:hover:not(:disabled) {
 .history-filter-panel details {
     margin: 8px 0;
     padding: 8px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border);
     border-radius: 6px;
     overflow-wrap: anywhere;
 }
@@ -1416,7 +1459,7 @@ main button:hover:not(:disabled) {
 
 .history-settings {
     margin-bottom: 10px;
-    color: #555;
+    color: var(--muted);
     font-size: 14px;
 }
 
@@ -1435,8 +1478,8 @@ main button:hover:not(:disabled) {
 .history-explanation {
     margin: 10px 0;
     padding: 14px;
-    background: #fff;
-    border: 1px solid #ddd;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 8px;
     text-align: left;
     overflow-wrap: anywhere;
@@ -1500,3 +1543,39 @@ main button:hover:not(:disabled) {
 #flowChoices button { min-height: 44px; white-space: normal; overflow-wrap: anywhere; }
 #flowExplanation, #flowErrors { white-space: pre-wrap; overflow-wrap: anywhere; }
 #flowChoices > p { grid-column: 1 / -1; }
+
+#flowChoices .flow-blank {
+    display: grid;
+    gap: 6px;
+    grid-column: 1 / -1;
+}
+#flowChoices .flow-blank :is(select, input) {
+    width: 100%;
+    min-height: 44px;
+    font-size: 1rem;
+}
+
+body {
+    padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+header {
+    padding-top: calc(14px + env(safe-area-inset-top));
+}
+
+@media (max-width: 600px) {
+    header {
+        padding-top: calc(8px + env(safe-area-inset-top));
+    }
+    nav button,
+    .header-auth-button,
+    .choice {
+        min-height: 44px;
+    }
+}
+
+:where(button, input, select):focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+}

@@ -44,11 +44,14 @@ let currentUser = null;
 let SHEETS = [];
 let selectedSheet = null;
 let studyWords = [];
+let studyChoicePool = [];
 
 let currentIndex = 0;
 let currentWord = null;
 let currentDisplayMeaning = "";
 let currentChoiceMeanings = new Map();
+let choiceDictionary;
+let choiceDictionaryRequest;
 
 let progress = {};
 let progressLoad = { status: "idle", uid: null, request: 0 };
@@ -754,10 +757,7 @@ async function loadSheets() {
     } catch (error) {
 
         if (!isCurrentAccount(account)) return;
-        console.error(
-            "loadSheets error:",
-            error
-        );
+        console.error("Google Sheets のジャンル一覧を取得できませんでした。");
 
         SHEETS = [];
 
@@ -1015,6 +1015,18 @@ function renderSheetList() {
 // ジャンル選択
 // ============================================================
 
+async function loadChoiceDictionary() {
+    choiceDictionaryRequest ??= Promise.resolve()
+        .then(() => fetch('choice-dictionary.json'))
+        .then(response => {
+            if (!response.ok) throw Error();
+            return response.json();
+        })
+        .then(data => { choiceDictionary = AttributeTags.dictionary(data); })
+        .catch(() => { choiceDictionaryRequest = undefined; });
+    await choiceDictionaryRequest;
+}
+
 async function selectSheet(sheetName) {
     if (sheetName === 'history_flow') return window.openHistoryFlow();
     const account = captureAccountContext();
@@ -1025,6 +1037,7 @@ async function selectSheet(sheetName) {
     selectedSheet =
         sheetName;
     studyWords = [];
+    studyChoicePool = [];
     updateBeginStudyButton();
 
     try {
@@ -1035,8 +1048,10 @@ async function selectSheet(sheetName) {
             );
         if (!isCurrentAccount(account) || selection !== sheetSelectionRequest || page !== pageGeneration) return;
 
-        studyWords =
-            parseSheetData(values);
+        const words = parseSheetData(values);
+        await loadChoiceDictionary();
+        if (!isCurrentAccount(account) || selection !== sheetSelectionRequest || page !== pageGeneration) return;
+        studyWords = words;
 
         updateSelectedSheetName();
 
@@ -1060,10 +1075,7 @@ async function selectSheet(sheetName) {
     } catch (error) {
 
         if (!isCurrentAccount(account) || selection !== sheetSelectionRequest || page !== pageGeneration) return;
-        console.error(
-            "selectSheet error:",
-            error
-        );
+        console.error("Google Sheets の問題を取得できませんでした。");
 
         alert(
             "問題データの読み込みに失敗しました。"
@@ -1525,6 +1537,7 @@ function beginStudy() {
     // ========================================================
 
     shuffleArray(words);
+    studyChoicePool = words;
 
 
     // ========================================================
@@ -1655,7 +1668,7 @@ function showQuestion() {
     const choices =
         buildAnswerChoices(
             currentWord,
-            studyWords,
+            studyChoicePool.length ? studyChoicePool : studyWords,
             studySettings.format,
             studySettings.meaningDisplay === "hard"
                 ? currentDisplayMeaning
@@ -1810,6 +1823,8 @@ function hasMeaningDelimiter(value) {
 function splitMeaningCandidates(value) {
 
     const text = String(value ?? "");
+    if (text.includes("／") && typeof AttributeTags !== 'undefined' &&
+        AttributeTags.numericFormat(text)?.kind === 'fraction') return [text.trim()];
     const meanings = [];
     let start = 0;
     let bracketDepth = 0;
@@ -1842,8 +1857,8 @@ function normalizeChoiceText(value) {
     return String(value ?? "")
         .normalize("NFKC")
         .trim()
-        .toLocaleLowerCase()
-        .replace(/[\s\u3000]+/g, " ");
+        .toLowerCase()
+        .replace(/\s+/g, " ");
 }
 
 
@@ -1880,99 +1895,124 @@ function choiceTextSimilarity(left, right) {
 }
 
 
+function meaningKeys(value, split, aliases) {
+    const forms = split ? [value, ...splitMeaningCandidates(value)] : [value];
+    const keys = forms.map(normalizeChoiceText).filter(Boolean);
+    return new Set(keys.map(key => aliases?.get(key) ?? key));
+}
+
+function sharesMeaning(keys, other) {
+    return [...keys].some(key => other.has(key));
+}
+
 function buildAnswerChoices(
     current,
     words,
     format,
     displayedCorrectMeaning,
-    displayedMeanings
+    displayedMeanings,
+    dictionary = choiceDictionary
 ) {
-
     const frontToBack = format === "frontToBack";
-    const originalCorrectAnswer = frontToBack
-        ? current.back
-        : current.front;
+    const answerSide = frontToBack ? "back" : "front";
+    const questionSide = frontToBack ? "front" : "back";
+    const tagSide = answerSide + "_tags";
+    const originalCorrectAnswer = current[answerSide];
     const correctAnswer = frontToBack && displayedCorrectMeaning !== undefined
         ? displayedCorrectMeaning
         : originalCorrectAnswer;
-    const targetQuestion = frontToBack
-        ? current.front
-        : current.back;
+    const targetQuestion = current[questionSide];
     const normalizedCorrect = normalizeChoiceText(originalCorrectAnswer);
     const normalizedQuestion = normalizeChoiceText(targetQuestion);
+    if (!normalizedCorrect || !normalizeChoiceText(correctAnswer)) return [];
 
-    if (!normalizedCorrect) {
-        return [];
-    }
-
-    const candidates = [];
-    const seen = new Set([normalizeChoiceText(correctAnswer)]);
-    const tagSide = frontToBack ? 'back_tags' : 'front_tags';
-    // Invalid labels must not silently fall back to unrelated answer formats.
+    const aliases = dictionary?.aliases;
+    const correctKeys = meaningKeys(originalCorrectAnswer, frontToBack, aliases);
+    const questionKeys = meaningKeys(targetQuestion, !frontToBack, aliases);
+    let tags = [];
     if (current[tagSide]) {
-        try { AttributeTags.parse(current[tagSide]); }
-        catch (_) { return [correctAnswer]; }
+        try { tags = AttributeTags.parse(current[tagSide]); }
+        catch { return [correctAnswer]; }
     }
+    const numeric = tags.some(tag => tag.startsWith("number/"));
+    const correctNumber = numeric ? AttributeTags.numericFormat(correctAnswer) : null;
+    if (numeric && !correctNumber) return [correctAnswer];
 
-    for (const word of words) {
-        if (word === current) {
-            continue;
+    const exact = [], fillers = [], broader = [];
+    const eligible = (answer, original, otherSide) => {
+        const normalizedAnswer = normalizeChoiceText(answer);
+        const keys = meaningKeys(original, frontToBack, aliases);
+        if (!normalizedAnswer || sharesMeaning(keys, correctKeys) || sharesMeaning(keys, questionKeys)) return null;
+        if (correctNumber) {
+            const number = AttributeTags.numericFormat(answer);
+            if (!number || number.unit !== correctNumber.unit || number.shape !== correctNumber.shape ||
+                number.value === correctNumber.value) return null;
+            keys.add('number:' + number.value);
+        } else if (choiceTextSimilarity(normalizedCorrect, normalizedAnswer) >= 0.82) {
+            return null;
         }
 
+        if (otherSide !== undefined) {
+            const otherKeys = meaningKeys(otherSide, !frontToBack, aliases);
+            if (sharesMeaning(otherKeys, correctKeys) || sharesMeaning(otherKeys, questionKeys) ||
+                choiceTextSimilarity(normalizedQuestion, otherSide) >= 0.82) return null;
+        }
+        return keys;
+    };
+
+    for (const word of words) {
+        if (word === current) continue;
         let tagRank = 0;
-        if (current[tagSide]) {
-            try { tagRank = AttributeTags.rank(current[tagSide], word[tagSide]); }
-            catch (_) { continue; }
+        let sameTag = false;
+        if (tags.length) {
+            try {
+                tagRank = AttributeTags.rank(current[tagSide], word[tagSide]);
+                sameTag = AttributeTags.parse(word[tagSide]).some(tag => tags.includes(tag));
+            } catch { continue; }
             if (tagRank < 0) continue;
         }
 
-        let answer = frontToBack ? word.back : word.front;
-
+        let answer = word[answerSide];
         if (frontToBack && displayedMeanings) {
-            if (!displayedMeanings.has(word)) {
-                displayedMeanings.set(
-                    word,
-                    pickDisplayMeaning(word.back)
-                );
-            }
-
+            if (!displayedMeanings.has(word)) displayedMeanings.set(word, pickDisplayMeaning(answer));
             answer = displayedMeanings.get(word);
         }
-        const normalizedAnswer = normalizeChoiceText(answer);
-        const otherSide = normalizeChoiceText(
-            frontToBack ? word.front : word.back
-        );
+        const keys = eligible(answer, word[answerSide], word[questionSide]);
+        if (!keys) continue;
 
-        if (
-            !normalizedAnswer ||
-            seen.has(normalizedAnswer) ||
-            normalizedAnswer === normalizedQuestion ||
-            otherSide === normalizedCorrect ||
-            otherSide === normalizedQuestion ||
-            choiceTextSimilarity(normalizedCorrect, normalizedAnswer) >= 0.82 ||
-            choiceTextSimilarity(normalizedQuestion, otherSide) >= 0.82
-        ) {
-            continue;
-        }
-
-        seen.add(normalizedAnswer);
-        candidates.push({
-            answer,
+        (sameTag || !tags.length ? exact : broader).push({
+            answer, keys,
             score: tagRank * 10 + Math.max(
-                choiceTextSimilarity(targetQuestion, frontToBack ? word.front : word.back),
+                choiceTextSimilarity(targetQuestion, word[questionSide]),
                 choiceTextSimilarity(correctAnswer, answer)
             )
         });
     }
 
-    // 正解と関連の強い候補を優先し、同点ならランダムに選ぶ。
-    shuffleArray(candidates);
-    candidates.sort((a, b) => b.score - a.score);
+    const japanese = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;
+    if (dictionary) for (const tag of tags) {
+        if (numeric && !tag.startsWith("number/")) continue;
+        for (const answer of dictionary.tags.get(tag) ?? []) {
+            // A tag may be used on either side of a bilingual card.
+            if (japanese.test(answer) !== japanese.test(correctAnswer)) continue;
+            const keys = eligible(answer, answer);
+            if (keys) fillers.push({ answer, keys, score: 0 });
+        }
+    }
 
-    return [
-        correctAnswer,
-        ...candidates.slice(0, 3).map(candidate => candidate.answer)
-    ];
+    const choices = [correctAnswer];
+    const used = new Set(correctKeys);
+    for (const pool of [exact, fillers, broader]) {
+        shuffleArray(pool);
+        pool.sort((a, b) => b.score - a.score);
+        for (const candidate of pool) {
+            if (choices.length === 4) return choices;
+            if (sharesMeaning(candidate.keys, used)) continue;
+            choices.push(candidate.answer);
+            for (const key of candidate.keys) used.add(key);
+        }
+    }
+    return choices;
 }
 
 
@@ -2389,6 +2429,7 @@ function changeStudySheet() {
 
     selectedSheet = null;
     studyWords = [];
+    studyChoicePool = [];
 
     showPage("sheetPage");
 }

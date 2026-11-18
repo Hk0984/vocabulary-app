@@ -56,3 +56,27 @@ test('source selection is explicit and rejects private settings or one-question 
     globalThis.HISTORY_QUESTIONS_CONFIG={spreadsheetId:config.spreadsheetId};
     try{assert.throws(()=>HistoryFlowSource.validateConfig(config));}finally{delete globalThis.HISTORY_QUESTIONS_CONFIG;}
 });
+
+test('cloze data projects through the unchanged public columns and grades partial answers', async () => {
+    const data = JSON.parse(await readFile(new URL('../templates/history-flow-cloze.sample.json',import.meta.url),'utf8'));
+    const [q] = data.questions;
+    const draft = { ...q, answer: '' };
+    q.blanks.forEach(({id,...blank},index) => {
+        draft[`item${index+1}_id`] = id;
+        draft[`item${index+1}_text`] = JSON.stringify(blank);
+    });
+    const mixed = [...values,HistoryFlowSource.HEADERS.map(key=>draft[key]??'')];
+    const loaded = HistoryFlowSource.parseValues(mixed,master);
+    assert.deepEqual(loaded.questions.at(-1),q);
+    assert.equal(HistoryFlow.load({...data,schema_version:'1.0'},master).errors.length,1);
+    const session = HistoryFlow.session([loaded.questions.at(-1)]);
+    assert.equal(session.submit(['b',' ']),null);
+    assert.equal(session.submit(['b',' 記録帳 ']),false);
+    assert.deepEqual(session.lastGrade,{points:1,total:2,results:[false,true]});
+    assert.equal(session.submit(['a','記録簿']),null);
+    assert.ok(session.next());
+    assert.equal(session.lastGrade,null);
+
+    draft.item1_text = '{"mode":"input","accepted":["Ａ","a"]}';
+    assert.throws(()=>HistoryFlowSource.parseValues([...values,HistoryFlowSource.HEADERS.map(key=>draft[key]??'')],master),/不正データ/);
+});
