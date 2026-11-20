@@ -4,8 +4,8 @@
 
 - H-3。取得した main の `73930ab743600d48854c77f8258586c35c3acddd` を起点にしたローカルのソース差分。世界史一問一答だけに選択肢別解説と地図を追加した。
 - 新しい作問は [作問仕様・ChatGPTに渡す依頼文](../HISTORY_QUIZ_AUTHORING.md) と22列のサンプルから開始できる。公開専用シートのヘッダは13列と読取確認した。
-- 作問CSVの3問、Web回帰152件、375px・1280pxのChromiumで動作を確認した。現行Bot用のCSV検証器で切り出した13列を検証した。Botの全テストは依存不足で完走していない。
-- 本番反映前に配信ビルド `cfc2ccbe90cd029c1e4a` の静的ファイル20件をマニフェストと照合して保存した。ソースは `backup/pages-before-history-quiz-2026-11-20` に退避。今回の配信候補は `41c384f9c5316abf0c99`。
+- 作問CSVの3問、Web回帰152件、375px・1280pxのChromiumで動作を確認した。現行Bot用のCSV検証器で切り出した13列を検証した。Python 3.14と固定依存を揃えてBotの全136件も確認した。
+- 本番反映前に配信ビルド `cfc2ccbe90cd029c1e4a` の静的ファイル20件をマニフェストと照合して保存した。ソースは `backup/pages-before-history-quiz-2026-11-20` に退避。新ビルド `41c384f9c5316abf0c99` は本番公開済み。静的ファイル全20件の一致と、未ログインからの既存クイズ開始を確認した。 [公開実行](https://github.com/Hk0984/vocabulary-app/actions/runs/44689497247)
 - `rebuild_v1` のビルドは、承認済みの22列を `config/history-quiz-reviewed.csv` に用意したときに読み込む。既存の問題変換は作問用ChatGPTへの依頼文から開始する。
 
 ## 直前の引き継ぎ
