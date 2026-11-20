@@ -94,6 +94,7 @@
     let answered = false;
     let correctCount = 0;
     let requestId = 0;
+    let detailsRequest;
 
     function element(id) { return document.getElementById(id); }
 
@@ -239,8 +240,26 @@
         return core.master;
     }
 
+    async function ensureHistoryQuizDetails() {
+        if (!root.HISTORY_QUIZ_DETAILS_ASSET || root.HISTORY_QUIZ_DETAILS) return;
+        detailsRequest ??= (async () => {
+            try {
+                const response = await fetch('./history-quiz-details.json', { signal: AbortSignal.timeout?.(5000) });
+                if (!response.ok) return;
+                const payload = await response.json();
+                if (payload?.details && typeof payload.details === "object" && Array.isArray(payload.atlas)) {
+                    root.HISTORY_QUIZ_DETAILS = payload;
+                }
+            } catch {
+                // Preserve access to the base questions if the optional asset is unavailable.
+            }
+        })();
+        await detailsRequest;
+        detailsRequest = undefined;
+    }
+
     async function loadHistoryQuestions() {
-        await ensureHistoryRegions();
+        await Promise.all([ensureHistoryRegions(), ensureHistoryQuizDetails()]);
         const config = root.HISTORY_QUESTIONS_CONFIG || {};
         if (!config.spreadsheetId || !config.sheetName || !config.apiKey) throw new Error('問題データの接続設定が必要です');
         const response = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + encodeURIComponent(config.spreadsheetId) +
@@ -320,6 +339,8 @@
                 return;
             }
             if (root.HistoryClassification) await ensureHistoryRegions();
+            if (root.HISTORY_QUIZ_DETAILS_ASSET) await ensureHistoryQuizDetails();
+            if (thisRequest !== requestId) return;
             const range = encodeURIComponent("'" + config.sheetName + "'");
             const url = "https://sheets.googleapis.com/v4/spreadsheets/" + encodeURIComponent(config.spreadsheetId) +
                 "/values/" + range + "?key=" + encodeURIComponent(config.apiKey);

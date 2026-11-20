@@ -13,8 +13,8 @@ export const HISTORY_QUIZ_CSV_HEADERS = [...baseHeaders, ...explanations, 'map_k
 
 export async function readHistoryQuizCsv(filename) {
     const stat = await lstat(filename);
-    if (!/\.csv$/i.test(filename) || !stat.isFile() || stat.isSymbolicLink() || stat.nlink > 1 || stat.size > 1_000_000) {
-        throw new Error('作問用のCSVファイル（1 MB以内）を指定してください。');
+    if (!/\.csv$/i.test(filename) || !stat.isFile() || stat.isSymbolicLink() || stat.nlink > 1 || stat.size > 10_000_000) {
+        throw new Error('作問用のCSVファイル（10 MB以内）を指定してください。');
     }
     return new TextDecoder('utf-8', { fatal: true }).decode(await readFile(filename));
 }

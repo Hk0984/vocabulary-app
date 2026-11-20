@@ -43,4 +43,4 @@ python3 -m http.server 8000 --bind 127.0.0.1 --directory dist/iphone-review-hist
 npm run build:web -- --out dist/history-pilot --history-public-config config/history-public-rebuild.json --history-quiz-csv draft.csv
 ```
 
-ビルドに渡した22列CSVの追加情報は、問題ID・設問・元の順番での4択・正答番号が公開問題と完全一致したときに表示される。作問中の教材はモックプレビューで確認する。公開を承認した行だけを `config/history-quiz-reviewed.csv` に用意すると、`rebuild_v1` の公開用ビルドが読み込む。ファイルがない場合は公開シートの既存13列で出題する。新規問題の13列取込・承認は [既存運用](HISTORY_REBUILD.md) に従う。
+ビルドに渡した22列CSVの追加情報は、問題ID・設問・元の順番での4択・正答番号が公開問題と完全一致したときに表示される。作問中の教材はモックプレビューで確認する。公開を承認した行だけを `config/history-quiz-reviewed.csv` に用意すると、`rebuild_v1` の公開用ビルドが読み込む。追加情報のCSVはUTF-8で10 MBまで。ビルドは追加情報を専用の配信ファイルにし、世界史一問一答を開いたときに読み込む。ファイルがない問題やデータが取得できなかった場合も、公開シートの既存13列で出題する。新規問題の13列取込・承認は [既存運用](HISTORY_REBUILD.md) に従う。

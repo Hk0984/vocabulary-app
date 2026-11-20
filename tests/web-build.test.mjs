@@ -38,6 +38,21 @@ test('world history pilot joins reviewed details by the unchanged question and s
     await assert.rejects(loadHistoryQuizCsv(csv.replace('41.0086|28.9802', '91|28.98'), regions), /緯度/);
     await assert.rejects(loadHistoryQuizCsv(csv.replace('country,DEU,FRA', 'country,ZZZ,FRA'), regions), /国コード/);
 });
+
+test('an optional history quiz payload is a separate, hashed release asset', async t => {
+    const options = await fixture(t);
+    const historyQuizCsv = await readFile(path.join(root, 'templates/history-quiz-pilot.sample.csv'), 'utf8');
+    const result = await buildWeb({ ...options, historyQuizCsv });
+    const read = filename => readFile(path.join(options.outputDir, filename), 'utf8');
+    const config = await read('history-config.js');
+    assert.match(config, /HISTORY_QUIZ_DETAILS_ASSET = true/);
+    assert.doesNotMatch(config, /pilot_sample/);
+    const asset = await read('history-quiz-details.json');
+    assert.equal(Object.keys(JSON.parse(asset).details).length, 3);
+    assert.ok(result.files.includes('history-quiz-details.json'));
+    const hashes = JSON.parse((await read('sw.js')).match(/const ASSET_HASHES = (\{[^\n]+\});/)[1]);
+    assert.equal(hashes['./history-quiz-details.json'], createHash('sha256').update(asset).digest('hex'));
+});
 test('production flow config reuses the browser key and Actions builds the same allowlist',async()=>{
     const source=await readFile(path.join(root,'history-flow-config.js'),'utf8');
     const context={window:{HISTORY_QUESTIONS_CONFIG:{apiKey:'mock-existing-browser-key'}}};

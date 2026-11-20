@@ -64,7 +64,8 @@ export async function buildWeb({ sourceDir = projectRoot, outputDir = path.join(
         const json = JSON.stringify({ details, atlas });
         if (secretPatterns.some(pattern => pattern.test(json))) throw new Error('Possible credential in quiz additions; contents withheld');
         const config = files.get('history-config.js').toString('utf8');
-        files.set('history-config.js', Buffer.from(config + '\nwindow.HISTORY_QUIZ_DETAILS = JSON.parse(' + JSON.stringify(json) + ');\n'));
+        files.set('history-config.js', Buffer.from(config + '\nwindow.HISTORY_QUIZ_DETAILS_ASSET = true;\n'));
+        files.set('history-quiz-details.json', Buffer.from(json));
     }
     const sourceDigest = sha256(Buffer.concat([...files].map(([name, content]) =>
         Buffer.from(`${name}\0${sha256(content)}\n`))));

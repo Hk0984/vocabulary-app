@@ -11,6 +11,7 @@ const APP_SHELL = [
     "./history_questions.js", "./pwa.js", "./manifest.json",
     "./icons/icon-192.png", "./icons/icon-512.png"
 ];
+if (ASSET_HASHES?.["./history-quiz-details.json"]) APP_SHELL.push("./history-quiz-details.json");
 const ASSET_URLS = new Set(APP_SHELL.map(asset => new URL(asset, self.registration.scope).href));
 
 self.addEventListener("install", event => {
