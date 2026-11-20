@@ -16,11 +16,13 @@ function makeElement(tagName = 'div') {
         style: {},
         children: [],
         listeners: {},
+        attributes: {},
         classList: { values: new Set(), add(value) { this.values.add(value); } },
         _text: '',
         replaceChildren(...children) { this.children = children; this._text = ''; },
         appendChild(child) { this.children.push(child); return child; },
         addEventListener(name, callback) { this.listeners[name] = callback; },
+        setAttribute(name, value) { this.attributes[name] = value; },
         querySelectorAll(selector) {
             return selector === 'button' ? this.children.filter(child => child.tagName === 'button') : [];
         },
@@ -37,6 +39,7 @@ function makeApp(config = {}) {
             return elements.get(id);
         },
         createElement(tagName) { return makeElement(tagName); },
+        createElementNS(_, tagName) { return makeElement(tagName); },
     };
     const context = { document, console, HISTORY_QUESTIONS_CONFIG: config, showPage() {} };
     context.window = context;
@@ -49,6 +52,40 @@ function makeApp(config = {}) {
 
 const headers = ['id','source_id','question','choice1','choice2','choice3','choice4','answer','explanation'];
 const question = (id, answer = '2') => [id,'source','問題文','選択肢A','選択肢B','選択肢C','選択肢D',answer,'解説文'];
+
+test('nearby answer labels are separated and linked to their original map positions', async () => {
+    const { context, elements } = makeApp({ spreadsheetId: 'test', sheetName: 'history_questions', apiKey: 'test' });
+    const [row] = context.HistoryQuestionCore.parseHistoryQuestionValues([headers, question('nearby')]);
+    context.HISTORY_QUIZ_DETAILS = {
+        atlas: [],
+        details: {
+            nearby: {
+                question: row.question, answer: row.answer,
+                choices: [row.choice1, row.choice2, row.choice3, row.choice4],
+                explanations: ['A', 'B', 'C', 'D'], kind: 'point',
+                locations: [[0, 0], [0.1, 0.1], [6, 1], [12, 3]],
+            },
+        },
+    };
+    await context.startHistoryQuiz({ questions: [row] });
+    const map = elements.get('historyMap');
+    assert.equal(map.children[1].children.length, 0);
+    elements.get('historyChoices').children[0].listeners.click();
+    const pins = map.children[1].children;
+    assert.equal(pins.length, 2);
+    const labels = pins.map(pin => {
+        const [line, anchor, label, number] = pin.children;
+        assert.equal(line.tagName, 'line');
+        assert.equal(line.attributes.x1, anchor.attributes.cx);
+        assert.equal(line.attributes.y1, anchor.attributes.cy);
+        assert.equal(line.attributes.x2, label.attributes.cx);
+        assert.equal(line.attributes.y2, label.attributes.cy);
+        assert.equal(label.attributes.cx, number.attributes.x);
+        assert.equal(label.attributes.cy, number.attributes.y);
+        return label.attributes;
+    });
+    assert.ok(Math.abs(labels[0].cx - labels[1].cx) > labels[0].r + labels[1].r);
+});
 
 test('history layout shares the study header and session bar, with collapsed settings and a separate explanation', () => {
     const history = html.slice(html.indexOf('<section id="historyPage"'));

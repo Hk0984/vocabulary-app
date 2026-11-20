@@ -201,12 +201,29 @@
             else svg.appendChild(shape);
         }
         highlights.forEach(shape => svg.appendChild(shape));
-        for (const [index, result] of revealed) {
+        const pins = [...revealed].map(([index, result]) => {
             const [lon, lat] = locations[index].point;
             const [x, y] = projection.project([longitudeNear(lon, projection.centerLon), lat]);
+            return { index, result, x, y };
+        });
+        if (pins.length === 2 && Math.hypot(pins[0].x - pins[1].x, pins[0].y - pins[1].y) < 44) {
+            // Keep the geographic anchors in place and move the two number labels apart.
+            pins.sort((first, second) => first.x - second.x || first.y - second.y);
+            const middle = (pins[0].x + pins[1].x) / 2;
+            const top = Math.min(pins[0].y, pins[1].y);
+            const labelY = top >= 42 ? top - 24 : Math.max(pins[0].y, pins[1].y) + 24;
+            pins[0].label = [middle - 22, labelY];
+            pins[1].label = [middle + 22, labelY];
+        }
+        for (const { index, result, x, y, label } of pins) {
             const pin = svgElement("g", { class: "history-map-" + result });
-            pin.appendChild(svgElement("circle", { cx: x, cy: y, r: 15 }));
-            const number = svgElement("text", { x, y, "text-anchor": "middle", "dominant-baseline": "central" });
+            const [labelX, labelY] = label ?? [x, y];
+            if (label) {
+                pin.appendChild(svgElement("line", { class: "history-map-leader", x1: x, y1: y, x2: labelX, y2: labelY }));
+                pin.appendChild(svgElement("circle", { class: "history-map-anchor", cx: x, cy: y, r: 3 }));
+            }
+            pin.appendChild(svgElement("circle", { class: "history-map-pin-label", cx: labelX, cy: labelY, r: 15 }));
+            const number = svgElement("text", { x: labelX, y: labelY, "text-anchor": "middle", "dominant-baseline": "central" });
             number.textContent = index + 1;
             pin.appendChild(number);
             svg.appendChild(pin);

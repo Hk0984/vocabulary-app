@@ -1550,6 +1550,16 @@ main button:hover:not(:disabled) {
     stroke-width: 2;
 }
 
+.history-map .history-map-leader {
+    stroke: var(--map-highlight);
+    stroke-width: 2;
+}
+
+.history-map .history-map-anchor {
+    fill: var(--map-highlight);
+    stroke: var(--map-label);
+}
+
 .history-map text {
     fill: var(--text);
     font-size: 22px;
