@@ -1496,6 +1496,87 @@ main button:hover:not(:disabled) {
     white-space: pre-wrap;
 }
 
+.history-wrong-explanation {
+    border-inline-start: 3px solid var(--incorrect-border);
+}
+
+.history-map {
+    margin: 12px 0;
+    text-align: left;
+}
+
+.history-map figcaption {
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+.history-map svg {
+    display: block;
+    width: 100%;
+    background: var(--canvas);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.history-map path {
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+.history-map-land {
+    fill: var(--surface);
+    stroke: var(--control-border);
+}
+
+.history-map-correct {
+    --map-highlight: var(--correct-border);
+    --map-label: var(--correct-bg);
+}
+
+.history-map-incorrect {
+    --map-highlight: var(--incorrect-border);
+    --map-label: var(--incorrect-bg);
+}
+
+.history-map path.history-map-correct,
+.history-map path.history-map-incorrect {
+    fill: color-mix(in srgb, var(--map-highlight) 45%, var(--map-label));
+    stroke: var(--map-highlight);
+}
+
+.history-map circle {
+    fill: var(--map-label);
+    stroke: var(--map-highlight);
+    stroke-width: 2;
+}
+
+.history-map text {
+    fill: var(--text);
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.history-map ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.history-map li {
+    padding: 2px 6px;
+    background: var(--map-label);
+    border-inline-start: 2px solid var(--map-highlight);
+    font-size: 13px;
+}
+
+.history-map small {
+    color: var(--muted);
+    font-size: 12px;
+}
+
 #choices,
 .history-choices {
     display: grid;

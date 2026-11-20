@@ -4,11 +4,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildWeb, WEB_FILES } from './build-web.mjs';
+import { loadHistoryQuizCsv, readHistoryQuizCsv } from './history-quiz-details.mjs';
 
 const project = fileURLToPath(new URL('../', import.meta.url));
 const filename = fileURLToPath(import.meta.url);
 
-function previewServices() {
+function previewServices(pilotQuestions) {
     const vocabID = 'iphone-review-vocab';
     const historyID = 'iphone-review-history';
     const cards = {
@@ -22,7 +23,7 @@ function previewServices() {
             ['8', '架空の容器Cの分量', '30 kg', '', 'number/mass'],
             ['9', '架空の待ち時間', '3分', '', 'number/duration']],
     };
-    const history = [
+    const history = pilotQuestions ?? [
         ['id','source_id','question','choice1','choice2','choice3','choice4','answer','explanation'],
         ['h001','synthetic','架空の会議で配布されたものは？','地図','画像','楽譜','資料','4','操作確認用の架空問題です。'],
     ];
@@ -67,7 +68,7 @@ function replaceRequired(text, pattern, replacement) {
     return text.replace(pattern, () => replacement);
 }
 
-export async function buildIphonePreview(outputDir) {
+export async function buildIphonePreview(outputDir, historyQuizCsv = null) {
     const staging = await mkdtemp(path.join(tmpdir(), 'vocab-iphone-preview-'));
     try {
         for (const name of WEB_FILES) {
@@ -86,12 +87,15 @@ export async function buildIphonePreview(outputDir) {
         script = replaceRequired(script, /const FIREBASE_CONFIG\s*=\s*\{[^}]*\};/, 'const FIREBASE_CONFIG = {};');
         script = replaceRequired(script, /const GOOGLE_SHEETS_API_KEY\s*=\s*"[^"]*";/, 'const GOOGLE_SHEETS_API_KEY = "synthetic";');
         script = replaceRequired(script, /const SHEET_ID\s*=\s*"[^"]*";/, 'const SHEET_ID = "iphone-review-vocab";');
-        await write('script.js','(' + previewServices.toString() + ')();\n' + script);
+        const pilotQuestions = historyQuizCsv === null ? null :
+            (await loadHistoryQuizCsv(historyQuizCsv, JSON.parse(await read('history-regions.json')))).values;
+        await write('script.js','(' + previewServices.toString() + ')(' + JSON.stringify(pilotQuestions) + ');\n' + script);
 
         let html = (await read('index.html')).replace(/^\s*<script src="https:\/\/www\.gstatic\.com\/firebasejs\/[^"]+"[^>]*><\/script>/gm,'');
         html = replaceRequired(html, /<head>/, '<head>\n<meta http-equiv="Content-Security-Policy" content="default-src \'self\'; script-src \'self\' \'unsafe-inline\'; style-src \'self\' \'unsafe-inline\'; connect-src \'self\'; object-src \'none\'; form-action \'none\'; base-uri \'none\'">');
         html = replaceRequired(html, /<title>[^<]*<\/title>/, '<title>単語学習・iPhone検証用</title>');
-        html = replaceRequired(html, /<body>/, '<body>\n<p role="note">iPhone検証用・架空データ・履歴保存なし</p>');
+        const note = pilotQuestions ? '世界史の作問プレビュー・履歴保存なし' : 'iPhone検証用・架空データ・履歴保存なし';
+        html = replaceRequired(html, /<body>/, '<body>\n<p role="note">' + note + '</p>');
         await write('index.html',html);
 
         const manifest = JSON.parse(await read('manifest.json'));
@@ -104,17 +108,17 @@ export async function buildIphonePreview(outputDir) {
         const dictionary = JSON.parse(await read('choice-dictionary.json'));
         delete dictionary.reviewed_numeric;
         await writeJSON('choice-dictionary.json',dictionary);
-        return await buildWeb({sourceDir:staging,outputDir});
+        return await buildWeb({sourceDir:staging,outputDir,historyQuizCsv});
     } finally {
         await rm(staging,{recursive:true,force:true});
     }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === filename) {
-    const [folder = 'iphone-review'] = process.argv.slice(2);
-    if (process.argv.length > 3 || !/^iphone-review(?:-[A-Za-z0-9_-]+)?$/.test(folder)) {
-        throw Error('Usage: node scripts/build-iphone-preview.mjs [iphone-review-SUFFIX]');
+    const [folder = 'iphone-review', csvPath] = process.argv.slice(2);
+    if (process.argv.length > 4 || !/^iphone-review(?:-[A-Za-z0-9_-]+)?$/.test(folder)) {
+        throw Error('Usage: node scripts/build-iphone-preview.mjs [iphone-review-SUFFIX] [question-draft.csv]');
     }
-    const result = await buildIphonePreview(path.join(project,'dist',folder));
+    const result = await buildIphonePreview(path.join(project,'dist',folder), csvPath ? await readHistoryQuizCsv(csvPath) : null);
     console.log(`Local iPhone review artifact: dist/${folder} (build ${result.buildId})`);
 }

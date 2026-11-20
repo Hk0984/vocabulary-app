@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 import '../attribute-tags.js';
 import '../history-classification.js';
 import '../history-flow.js';
-export function csv(text) {
+export function csv(text, expectedHeaders) {
     const rows=[];let row=[],cell='',quoted=false;
     for(let i=0;i<text.length;i++) {
         const c=text[i];
@@ -15,6 +15,9 @@ export function csv(text) {
     if(quoted)throw Error('引用符が閉じていません');
     if(cell||row.length){row.push(cell);rows.push(row);}
     const headers=rows.shift();if(!headers||new Set(headers).size!==headers.length)throw Error('CSV見出しが不正です');
+    if (expectedHeaders && (headers.length !== expectedHeaders.length || headers.some((header, index) => header !== expectedHeaders[index]))) {
+        throw Error('CSVの列名または列順が仕様と一致しません');
+    }
     return rows.filter(r=>r.some(Boolean)).map(r=>{if(r.length!==headers.length)throw Error('CSV列数が不正です');return Object.fromEntries(headers.map((h,i)=>[h,r[i]]));});
 }
 export function reconcile(base, labels) {

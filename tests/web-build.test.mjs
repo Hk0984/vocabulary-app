@@ -9,8 +9,35 @@ import vm from 'node:vm';
 import { buildWeb, WEB_FILES } from '../scripts/build-web.mjs';
 import { checkPagesSource } from '../scripts/check-pages-release.mjs';
 import { buildIphonePreview } from '../scripts/build-iphone-preview.mjs';
+import { loadHistoryQuizCsv } from '../scripts/history-quiz-details.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+
+test('world history pilot joins reviewed details by the unchanged question and shuffles whole choices', async () => {
+    const csv = await readFile(path.join(root, 'templates/history-quiz-pilot.sample.csv'), 'utf8');
+    const regions = JSON.parse(await readFile(path.join(root, 'history-regions.json'), 'utf8'));
+    const { values, details, atlas } = await loadHistoryQuizCsv(csv, regions);
+    assert.equal(values[0].length, 13);
+    assert.equal(values.length, 4);
+    assert.deepEqual(details.pilot_sample_002.locations[0], [28.9802, 41.0086]);
+    assert.equal(details.pilot_sample_003.kind, '');
+    assert.ok(atlas.some(([code]) => code === 'FRA'));
+    const context = { HISTORY_QUIZ_DETAILS: { details, atlas } };
+    vm.runInNewContext(await readFile(path.join(root, 'history_questions.js'), 'utf8'), context);
+    const [source] = values.slice(1).map(row => Object.fromEntries(values[0].map((header, index) => [header, row[index]])));
+    const [session] = context.HistoryQuestionCore.createSession([source], 10, () => 0);
+    assert.equal(session.mapKind, 'country');
+    assert.equal(session.choices[0].text, source.choice2);
+    assert.equal(session.choices[0].correct, true);
+    assert.equal(session.choices[0].location, 'FRA');
+    assert.equal(session.choices[0].explanation, details[source.id].explanations[1]);
+    const [stale] = context.HistoryQuestionCore.createSession([{ ...source, choice1: '変更済み' }]);
+    assert.equal(stale.mapKind, undefined);
+    assert.ok(stale.choices.every(choice => !choice.explanation));
+    await assert.rejects(loadHistoryQuizCsv(csv.replace('explanation1,explanation2', 'explanation2,explanation1'), regions), /列名または列順/);
+    await assert.rejects(loadHistoryQuizCsv(csv.replace('41.0086|28.9802', '91|28.98'), regions), /緯度/);
+    await assert.rejects(loadHistoryQuizCsv(csv.replace('country,DEU,FRA', 'country,ZZZ,FRA'), regions), /国コード/);
+});
 test('production flow config reuses the browser key and Actions builds the same allowlist',async()=>{
     const source=await readFile(path.join(root,'history-flow-config.js'),'utf8');
     const context={window:{HISTORY_QUESTIONS_CONFIG:{apiKey:'mock-existing-browser-key'}}};

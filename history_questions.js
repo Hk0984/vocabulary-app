@@ -71,10 +71,16 @@
         const limit = count === "unlimited" ? unique.length : Math.max(1, Number(count) || 10);
         const ordered = order === 'registered' ? unique : shuffled(unique, random);
         return ordered.slice(0, limit).map(question => {
-            const choices = shuffled([1, 2, 3, 4].map(number => ({
-                text: question["choice" + number], correct: isCorrect(question, number)
+            const extra = root.HISTORY_QUIZ_DETAILS?.details;
+            const candidate = extra && Object.hasOwn(extra, question.id) ? extra[question.id] : null;
+            const optionTexts = [question.choice1, question.choice2, question.choice3, question.choice4];
+            const details = candidate && candidate.question === question.question && candidate.answer === question.answer &&
+                optionTexts.every((text, index) => text === candidate.choices[index]) ? candidate : null;
+            const choices = shuffled(optionTexts.map((text, index) => ({
+                text, correct: isCorrect(question, index + 1),
+                ...(details && { explanation: details.explanations[index], location: details.locations[index] }),
             })), random);
-            return { ...question, choices };
+            return { ...question, choices, ...(details?.kind && { mapKind: details.kind }) };
         });
     }
 
@@ -90,6 +96,137 @@
     let requestId = 0;
 
     function element(id) { return document.getElementById(id); }
+
+    function textElement(tag, text) {
+        const node = document.createElement(tag);
+        node.textContent = text;
+        return node;
+    }
+
+    function svgElement(tag, attributes) {
+        const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+        for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
+        return node;
+    }
+
+    function longitudeNear(longitude, reference) {
+        return longitude + 360 * Math.round((reference - longitude) / 360);
+    }
+
+    function mapProjection(locations) {
+        const longitudes = locations.map(({ point }) => point[0]).sort((a, b) => a - b);
+        let gap = -1;
+        let reference = longitudes[0];
+        longitudes.forEach((longitude, index) => {
+            const next = longitudes[index + 1] ?? longitudes[0] + 360;
+            if (next - longitude > gap) {
+                gap = next - longitude;
+                reference = next + (360 - gap) / 2;
+            }
+        });
+        const bounds = locations.map(({ point: [lon, lat], box }) => {
+            const shifted = longitudeNear(lon, reference);
+            const offset = shifted - lon;
+            return box ? [box[0] + offset, box[1], box[2] + offset, box[3]] : [shifted, lat, shifted, lat];
+        });
+        const west = Math.min(...bounds.map(box => box[0]));
+        const south = Math.min(...bounds.map(box => box[1]));
+        const east = Math.max(...bounds.map(box => box[2]));
+        const north = Math.max(...bounds.map(box => box[3]));
+        const centerLon = (west + east) / 2;
+        const centerLat = (south + north) / 2;
+        const factor = Math.max(0.35, Math.cos(centerLat * Math.PI / 180));
+        const scale = Math.min(550 / Math.max((east - west) * factor, 5), 248 / Math.max(north - south, 3));
+        return {
+            centerLon,
+            project: ([lon, lat], offset = 0) => [320 + (lon + offset - centerLon) * scale * factor, 150 - (lat - centerLat) * scale],
+        };
+    }
+
+    function visibleMapPath(rings, projection) {
+        const paths = [];
+        for (const ring of rings) {
+            const middleOffset = longitudeNear(ring[0][0], projection.centerLon) - ring[0][0];
+            for (const offset of [middleOffset - 360, middleOffset, middleOffset + 360]) {
+                const points = ring.map(point => projection.project(point, offset));
+                if (points.every(([x]) => x < 0) || points.every(([x]) => x > 640) ||
+                    points.every(([, y]) => y < 0) || points.every(([, y]) => y > 300)) continue;
+                paths.push("M" + points.map(([x, y]) => x.toFixed(1) + "," + y.toFixed(1)).join("L") + "Z");
+            }
+        }
+        return paths.join("");
+    }
+
+    function renderMap(question, selectedIndex = null) {
+        const target = element("historyMap");
+        if (!target) return;
+        target.hidden = true;
+        target.replaceChildren();
+        if (!question.mapKind) return;
+        const atlas = root.HISTORY_QUIZ_DETAILS.atlas;
+        const byCode = new Map(atlas.filter(([code]) => /^[A-Z]{3}$/.test(code)).map(entry => [entry[0], entry]));
+        const locations = question.choices.map(choice => {
+            if (question.mapKind === "point") return { point: choice.location };
+            const [, point, box] = byCode.get(choice.location);
+            return { point, box };
+        });
+        const projection = mapProjection(locations);
+        const caption = textElement("figcaption", selectedIndex === null ? "白地図（現在の地図）" : "位置の確認（現在の地図）");
+        const svg = svgElement("svg", { viewBox: "0 0 640 300", "aria-hidden": "true" });
+        const legend = document.createElement("ul");
+        const revealed = new Map();
+        if (selectedIndex !== null) {
+            question.choices.forEach((choice, index) => {
+                if (choice.correct || index === selectedIndex) {
+                    const result = choice.correct ? "correct" : "incorrect";
+                    revealed.set(index, result);
+                    const item = textElement("li", (index + 1) + ". " + choice.text + (choice.correct ? "（正解）" : "（選んだ答え）"));
+                    item.className = "history-map-" + result;
+                    legend.appendChild(item);
+                }
+            });
+        }
+        const highlighted = new Map();
+        if (question.mapKind === "country") {
+            for (const [index, result] of revealed) highlighted.set(question.choices[index].location, result);
+        }
+        const highlights = [];
+        for (const [code, , , rings] of atlas) {
+            const path = visibleMapPath(rings, projection);
+            if (!path) continue;
+            const result = highlighted.get(code);
+            const shape = svgElement("path", { d: path, "fill-rule": "evenodd", class: result ? "history-map-" + result : "history-map-land" });
+            if (result) highlights.push(shape);
+            else svg.appendChild(shape);
+        }
+        highlights.forEach(shape => svg.appendChild(shape));
+        for (const [index, result] of revealed) {
+            const [lon, lat] = locations[index].point;
+            const [x, y] = projection.project([longitudeNear(lon, projection.centerLon), lat]);
+            const pin = svgElement("g", { class: "history-map-" + result });
+            pin.appendChild(svgElement("circle", { cx: x, cy: y, r: 15 }));
+            const number = svgElement("text", { x, y, "text-anchor": "middle", "dominant-baseline": "central" });
+            number.textContent = index + 1;
+            pin.appendChild(number);
+            svg.appendChild(pin);
+        }
+        const source = textElement("small", "地図データ Natural Earth / QGIS");
+        target.appendChild(caption);
+        target.appendChild(svg);
+        if (revealed.size) target.appendChild(legend);
+        target.appendChild(source);
+        target.hidden = false;
+    }
+
+    function clearReview() {
+        for (const id of ["historyWrongExplanation", "historyMap"]) {
+            const target = element(id);
+            if (target) {
+                target.hidden = true;
+                target.replaceChildren();
+            }
+        }
+    }
 
     async function ensureHistoryRegions() {
         const core = root.HistoryClassification;
@@ -130,6 +267,7 @@
             if (target) target.textContent = "";
         }
         element("historyExplanation").hidden = true;
+        clearReview();
         for (const id of ["historyQuiz", "historyNext", "historyEndActions"]) {
             const target = element(id);
             if (target) target.style.display = "none";
@@ -236,6 +374,8 @@
         element("historyResult").textContent = "";
         element("historyExplanation").hidden = true;
         element("historyExplanationText").textContent = "";
+        clearReview();
+        renderMap(question);
         element("historyNext").style.display = "none";
         const choices = element("historyChoices");
         choices.replaceChildren();
@@ -267,8 +407,18 @@
         });
         element("historyResult").textContent = (correct ? "正解です。" : "不正解です。") +
             " 正解: " + question["choice" + question.answer];
-        element("historyExplanationText").textContent = question.explanation;
-        element("historyExplanation").hidden = !question.explanation;
+        const rightExplanation = question.choices.find(choice => choice.correct).explanation;
+        const explanations = [...new Set([rightExplanation, question.explanation].filter(Boolean))];
+        element("historyExplanationText").textContent = explanations.join("\n\n");
+        element("historyExplanation").hidden = !explanations.length;
+        const wrong = question.choices[selectedIndex];
+        if (!correct && wrong.explanation) {
+            const feedback = element("historyWrongExplanation");
+            feedback.appendChild(textElement("h3", "選んだ答え · " + wrong.text));
+            feedback.appendChild(textElement("p", wrong.explanation));
+            feedback.hidden = false;
+        }
+        if (question.mapKind) renderMap(question, selectedIndex);
         const next = element("historyNext");
         next.textContent = currentIndex + 1 < questions.length ? "次の問題" : "結果を見る";
         next.style.display = "";

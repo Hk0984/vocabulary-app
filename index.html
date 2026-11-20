@@ -755,10 +755,12 @@
         </div>
         <div id="historyChoices" class="history-choices"></div>
         <div id="historyResult" class="history-result" aria-live="polite"></div>
+        <section id="historyWrongExplanation" class="history-explanation history-wrong-explanation" aria-label="選んだ答えの解説" hidden></section>
         <section id="historyExplanation" class="history-explanation" aria-label="解説" hidden>
             <h3>解説</h3>
             <p id="historyExplanationText"></p>
         </section>
+        <figure id="historyMap" class="history-map" hidden></figure>
         <button id="historyNext" class="history-next" style="display:none;" onclick="nextHistoryQuestion()">次の問題</button>
     </div>
     <p id="historySummary" class="history-result" role="status"></p>

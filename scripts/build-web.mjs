@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import '../attribute-tags.js';
+import { loadHistoryQuizCsv, readHistoryQuizCsv } from './history-quiz-details.mjs';
 
 export const WEB_FILES = Object.freeze([
     'index.html', 'style.css', 'script.js', 'history-config.js', 'history_questions.js',
@@ -23,7 +24,7 @@ const secretPatterns = [
     /\bAKIA[0-9A-Z]{16}\b/
 ];
 
-export async function buildWeb({ sourceDir = projectRoot, outputDir = path.join(projectRoot, 'dist/web'), publicConfig = null } = {}) {
+export async function buildWeb({ sourceDir = projectRoot, outputDir = path.join(projectRoot, 'dist/web'), publicConfig = null, historyQuizCsv = null } = {}) {
     const files = new Map();
     // Explicit filenames only: never traverse bot/, credentials, logs or dependencies.
     for (const name of WEB_FILES) {
@@ -56,6 +57,14 @@ export async function buildWeb({ sourceDir = projectRoot, outputDir = path.join(
         const generatedText='window.HISTORY_QUESTIONS_CONFIG = Object.freeze('+JSON.stringify(generated)+');\n';
         if(secretPatterns.some(pattern=>pattern.test(generatedText)))throw new Error('Possible credential in public-only configuration; contents withheld');
         files.set('history-config.js',Buffer.from(generatedText));
+    }
+    if (historyQuizCsv !== null) {
+        const regions = JSON.parse(files.get('history-regions.json').toString('utf8'));
+        const { details, atlas } = await loadHistoryQuizCsv(historyQuizCsv, regions);
+        const json = JSON.stringify({ details, atlas });
+        if (secretPatterns.some(pattern => pattern.test(json))) throw new Error('Possible credential in quiz additions; contents withheld');
+        const config = files.get('history-config.js').toString('utf8');
+        files.set('history-config.js', Buffer.from(config + '\nwindow.HISTORY_QUIZ_DETAILS = JSON.parse(' + JSON.stringify(json) + ');\n'));
     }
     const sourceDigest = sha256(Buffer.concat([...files].map(([name, content]) =>
         Buffer.from(`${name}\0${sha256(content)}\n`))));
@@ -92,8 +101,8 @@ export async function buildWeb({ sourceDir = projectRoot, outputDir = path.join(
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
     const args = process.argv.slice(2);
-    let target='dist/web',configPath=null;
-    for(let i=0;i<args.length;i+=2){if(!args[i+1])throw new Error('Missing argument');if(args[i]==='--out')target=args[i+1];else if(args[i]==='--history-public-config')configPath=args[i+1];else throw new Error('Unknown build option');}
+    let target='dist/web',configPath=null,historyQuizPath=null;
+    for(let i=0;i<args.length;i+=2){if(!args[i+1])throw new Error('Missing argument');if(args[i]==='--out')target=args[i+1];else if(args[i]==='--history-public-config')configPath=args[i+1];else if(args[i]==='--history-quiz-csv')historyQuizPath=args[i+1];else throw new Error('Unknown build option');}
     const outputDir = path.resolve(projectRoot, target);
     const relative = path.relative(path.join(projectRoot, 'dist'), outputDir);
     if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('Output must be a subdirectory of dist/');
@@ -104,6 +113,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         try { publicConfig=JSON.parse(await readFile(configPath,'utf8')); }
         catch { throw new Error('Public-only configuration JSON is invalid; contents withheld'); }
     }
-    const result = await buildWeb({ outputDir, publicConfig });
+    if (historyQuizPath === null && publicConfig !== null) {
+        const reviewedPath = path.join(projectRoot, 'config/history-quiz-reviewed.csv');
+        try {
+            await lstat(reviewedPath);
+            historyQuizPath = reviewedPath;
+        } catch (error) {
+            if (error.code !== 'ENOENT') throw error;
+        }
+    }
+    const historyQuizCsv = historyQuizPath === null ? null : await readHistoryQuizCsv(historyQuizPath);
+    const result = await buildWeb({ outputDir, publicConfig, historyQuizCsv });
     console.log(`Prepared ${result.files.length} web files; build ${result.buildId}. No deployment performed.`);
 }
