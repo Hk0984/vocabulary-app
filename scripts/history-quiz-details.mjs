@@ -28,7 +28,7 @@ function readPosition(value, kind, countries) {
     throw new Error(kind === 'point' ? 'placeは有効な緯度|経度で指定してください。' : '地図収録済みの3文字国コードを指定してください。');
 }
 
-export function compileHistoryQuizCsv(text, regionData, atlas) {
+export function compileHistoryQuizCsv(text, regionData, atlas, curatedExplanations = null) {
     const rows = csv(text.replace(/^\uFEFF/, ''), HISTORY_QUIZ_CSV_HEADERS);
     if (!rows.length) throw new Error('作問用CSVに問題がありません。');
     HistoryClassification.setRegions(regionData);
@@ -52,9 +52,18 @@ export function compileHistoryQuizCsv(text, regionData, atlas) {
             if (new Set(locations.map(location => JSON.stringify(location))).size !== locations.length) {
                 throw new Error('同じ位置を複数の選択肢に指定できません。');
             }
+            const curation = curatedExplanations && Object.hasOwn(curatedExplanations, row.id)
+                ? curatedExplanations[row.id] : null;
+            if (curation && (
+                !curation || curation.general !== row.explanation ||
+                curation.right !== row['explanation' + row.answer] ||
+                typeof curation.merged !== 'string' || !curation.merged.trim() ||
+                curation.merged.length > 2500
+            )) throw new Error('確定済み解説が変更されています。再照合が必要です。');
             details[row.id] = {
                 question: row.question, choices: choices.map(key => row[key]), answer: row.answer,
                 explanations: explanations.map(key => row[key]), kind, locations,
+                ...(curation && { reviewedExplanation: curation.merged }),
             };
             hasMap ||= Boolean(kind);
         } catch (error) {
@@ -66,7 +75,12 @@ export function compileHistoryQuizCsv(text, regionData, atlas) {
 
 export async function loadHistoryQuizCsv(text, regionData) {
     const atlas = JSON.parse(await readFile(new URL('../data/history-quiz-atlas.json', import.meta.url), 'utf8'));
-    return compileHistoryQuizCsv(text, regionData, atlas);
+    const review = JSON.parse(await readFile(new URL('../data/history-explanations-curated.json', import.meta.url), 'utf8'));
+    if (!review || review.version !== 1 || !review.entries ||
+        Object.keys(review.entries).length !== 109) {
+        throw new Error('確定済み解説の件数または形式が不正です。');
+    }
+    return compileHistoryQuizCsv(text, regionData, atlas, review.entries);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

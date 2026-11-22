@@ -80,11 +80,32 @@
                 text, correct: isCorrect(question, index + 1),
                 ...(details && { explanation: details.explanations[index], location: details.locations[index] }),
             })), random);
-            return { ...question, choices, ...(details?.kind && { mapKind: details.kind }) };
+            return { ...question, choices,
+                ...(details?.kind && { mapKind: details.kind }),
+                ...(details?.reviewedExplanation && { reviewedExplanation: details.reviewedExplanation }),
+            };
         });
     }
 
-    root.HistoryQuestionCore = { HEADERS, hasExpectedHeaders, parseHistoryQuestionValues, parseDataset, isCorrect, createSession };
+    function mergeHistoryExplanations(rightExplanation, questionExplanation) {
+        const right = String(rightExplanation ?? '').trim();
+        const general = String(questionExplanation ?? '').trim();
+        if (!right) return general;
+        if (!general) return right;
+        const canonical = value => value.normalize('NFKC')
+            .replace(/[\s\u3000]+/g, '')
+            .replace(/[。．.、，,！？!?「」『』（）()：:；;]/g, '');
+        const generalKey = canonical(general);
+        const rightKey = canonical(right);
+        if (generalKey.includes(rightKey)) return general;
+        if (rightKey.includes(generalKey)) return right;
+        const additions = (right.match(/[^。！？]+[。！？]?/g) ?? [right])
+            .map(sentence => sentence.trim())
+            .filter(sentence => canonical(sentence) && !generalKey.includes(canonical(sentence)));
+        return additions.length ? general + '\n\n補足：' + additions.join('') : general;
+    }
+
+    root.HistoryQuestionCore = { HEADERS, hasExpectedHeaders, parseHistoryQuestionValues, parseDataset, isCorrect, createSession, mergeHistoryExplanations };
     if (typeof module !== "undefined" && module.exports) module.exports = root.HistoryQuestionCore;
 
     if (typeof document === "undefined") return;
@@ -446,9 +467,10 @@
         element("historyResult").textContent = (correct ? "正解です。" : "不正解です。") +
             " 正解: " + question["choice" + question.answer];
         const rightExplanation = question.choices.find(choice => choice.correct).explanation;
-        const explanations = [...new Set([rightExplanation, question.explanation].filter(Boolean))];
-        element("historyExplanationText").textContent = explanations.join("\n\n");
-        element("historyExplanation").hidden = !explanations.length;
+        const explanation = question.reviewedExplanation ||
+            mergeHistoryExplanations(rightExplanation, question.explanation);
+        element("historyExplanationText").textContent = explanation;
+        element("historyExplanation").hidden = !explanation;
         const wrong = question.choices[selectedIndex];
         if (!correct && wrong.explanation) {
             const feedback = element("historyWrongExplanation");
