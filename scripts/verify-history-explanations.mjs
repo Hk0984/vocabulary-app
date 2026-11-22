@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { readHistoryQuizCsv, loadHistoryQuizCsv } from './history-quiz-details.mjs';
 
 const csvPath = new URL('../config/history-quiz-reviewed.csv', import.meta.url);
@@ -8,7 +9,7 @@ const regionsPath = new URL('../history-regions.json', import.meta.url);
 const review = JSON.parse(await readFile(reviewedPath, 'utf8'));
 const regions = JSON.parse(await readFile(regionsPath, 'utf8'));
 const { values, details } = await loadHistoryQuizCsv(
-    await readHistoryQuizCsv(csvPath.pathname), regions
+    await readHistoryQuizCsv(fileURLToPath(csvPath)), regions
 );
 
 assert.equal(values.length - 1, 1536, 'The production 22-column data must retain all 1,536 rows');
