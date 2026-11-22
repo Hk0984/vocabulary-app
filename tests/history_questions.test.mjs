@@ -53,6 +53,41 @@ function makeApp(config = {}) {
 const headers = ['id','source_id','question','choice1','choice2','choice3','choice4','answer','explanation'];
 const question = (id, answer = '2') => [id,'source','問題文','選択肢A','選択肢B','選択肢C','選択肢D',answer,'解説文'];
 
+test('consolidates repeated correct-option text and preserves independent facts', () => {
+    const { context } = makeApp();
+    const merge = context.HistoryQuestionCore.mergeHistoryExplanations;
+    const source = '殷は中国の古代王朝で青銅器や甲骨文字で知られる。都は大邑商とされる。';
+    assert.equal(merge('殷は中国の古代王朝で青銅器や甲骨文字で知られる。', source), source);
+    assert.equal(merge('共通点。追加の史実。', '共通点。従来の史実。'),
+        '共通点。従来の史実。\n\n補足：追加の史実。');
+    assert.equal(merge('全体の説明。詳しい解説。', '全体の説明。'), '全体の説明。詳しい解説。');
+    assert.equal(merge('', source), source);
+    assert.equal(merge('解説のみ。', ''), '解説のみ。');
+});
+
+test('reviewed explanation replaces auto-merge only when supplied for the matching question', async () => {
+    const { context, elements } = makeApp({ spreadsheetId: 'test', sheetName: 'history_questions', apiKey: 'test' });
+    const row = context.HistoryQuestionCore.parseHistoryQuestionValues([headers, question('curated')])[0];
+    context.HISTORY_QUIZ_DETAILS = {
+        details: {
+            curated: {
+                question: row.question, answer: row.answer,
+                choices: [row.choice1, row.choice2, row.choice3, row.choice4],
+                explanations: ['誤答説明A', '共通点。さらに正答の詳細。', '誤答説明C', '誤答説明D'],
+                reviewedExplanation: '共通点と元の史実をまとめました。さらに正答の詳細も保持しました。',
+                kind: '', locations: [],
+            },
+        },
+        atlas: [],
+    };
+    await context.startHistoryQuiz({ questions: [row] });
+    const correctButton = elements.get('historyChoices').children.find(button => button.textContent.endsWith('選択肢B'));
+    correctButton.listeners.click();
+    assert.equal(elements.get('historyExplanationText').textContent,
+        '共通点と元の史実をまとめました。さらに正答の詳細も保持しました。');
+    assert.equal(elements.get('historyExplanation').hidden, false);
+});
+
 test('nearby answer labels are separated and linked to their original map positions', async () => {
     const { context, elements } = makeApp({ spreadsheetId: 'test', sheetName: 'history_questions', apiKey: 'test' });
     const [row] = context.HistoryQuestionCore.parseHistoryQuestionValues([headers, question('nearby')]);
