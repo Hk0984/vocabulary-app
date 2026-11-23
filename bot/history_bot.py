@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import asyncio
 import logging
+import re
 import uuid
 import csv
 import io
@@ -30,7 +31,7 @@ from instance_lock import AlreadyRunningError, acquire_instance_lock, release_in
 
 from history_classification import MANAGEMENT_HEADERS, validate as validate_classification
 from history_data import validate_table
-from history_environment import active_profile, require_approved, ApprovalRequiredError, repository_path
+from history_environment import active_profile, require_approved, ApprovalRequiredError, repository_path, reject_public_management_book
 
 SHEET_HEADERS = MANAGEMENT_HEADERS.copy()
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -48,14 +49,22 @@ def credential_path():
     return path
 
 
+def discord_scope() -> tuple[str, set[str]]:
+    guild = os.environ.get("DISCORD_GUILD_ID", "").strip()
+    admins = {value.strip() for value in os.environ.get("ADMIN_USER_IDS", "").split(",") if value.strip()}
+    if not re.fullmatch(r"[1-9][0-9]{0,19}", guild):
+        raise RuntimeError("DISCORD_GUILD_ID に管理対象のサーバーIDを指定してください。")
+    if not admins or any(not re.fullmatch(r"[1-9][0-9]{0,19}", value) for value in admins):
+        raise RuntimeError("ADMIN_USER_IDS に管理者のDiscordユーザーIDを指定してください。")
+    return guild, admins
+
+
 def check_configuration():
     credential_path()
     profile = active_profile()
     if profile and not Path(profile['review_file']).is_file():
         raise RuntimeError('選択中の環境の承認記録ファイルが見つかりません。基準は環境JSONの親です。')
-    guild_id = os.environ.get('DISCORD_GUILD_ID')
-    if guild_id and not (guild_id.isascii() and guild_id.isdecimal() and int(guild_id) > 0):
-        raise RuntimeError('DISCORD_GUILD_ID は正のDiscord IDで指定してください。')
+    discord_scope()
     management_id, management_title = sheet_config()
     public_id, _ = public_sheet_config()
     if not management_title.strip() or management_id.strip() == public_id.strip():
@@ -73,12 +82,16 @@ def sheets_client():
 
 
 def sheet_config() -> tuple[str, str]:
-    profile=active_profile()
-    if profile:return profile['management_spreadsheet_id'],profile['management_sheet_name']
-    spreadsheet_id = os.environ.get("GOOGLE_SHEETS_SPREADSHEET_ID")
+    profile = active_profile()
+    if profile:
+        spreadsheet_id = profile['management_spreadsheet_id']
+        title = profile['management_sheet_name']
+    else:
+        spreadsheet_id = os.environ.get("GOOGLE_SHEETS_SPREADSHEET_ID", "").strip()
+        title = os.environ.get("HISTORY_SHEET_NAME", "history_questions")
     if not spreadsheet_id:
         raise RuntimeError("GOOGLE_SHEETS_SPREADSHEET_ID が設定されていません。")
-    title = os.environ.get("HISTORY_SHEET_NAME", "history_questions")
+    reject_public_management_book(spreadsheet_id)
     return spreadsheet_id, title
 
 
@@ -181,11 +194,11 @@ def update_status(row_numbers: list[int], status: str) -> None:
 
 
 def allowed_user(interaction: discord.Interaction) -> bool:
-    admins = {value.strip() for value in os.environ.get("ADMIN_USER_IDS", "").split(",") if value.strip()}
-    guild_id = os.environ.get("DISCORD_GUILD_ID")
-    if guild_id and str(interaction.guild_id) != guild_id:
+    try:
+        guild, admins = discord_scope()
+    except RuntimeError:
         return False
-    return str(interaction.user.id) in admins
+    return str(interaction.guild_id) == guild and str(interaction.user.id) in admins
 
 
 async def defer_interaction(interaction: discord.Interaction) -> bool:
@@ -276,13 +289,10 @@ class HistoryBot(discord.Client):
         self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self):
-        guild_id = os.environ.get("DISCORD_GUILD_ID")
-        if guild_id:
-            guild = discord.Object(id=int(guild_id))
-            self.tree.copy_global_to(guild=guild)
-            await self.tree.sync(guild=guild)
-        else:
-            await self.tree.sync()
+        guild_id, _ = discord_scope()
+        guild = discord.Object(id=int(guild_id))
+        self.tree.copy_global_to(guild=guild)
+        await self.tree.sync(guild=guild)
 
 
 bot = HistoryBot()
@@ -552,6 +562,10 @@ if __name__ == "__main__":
     token = os.environ.get("DISCORD_BOT_TOKEN")
     if not token:
         raise SystemExit("DISCORD_BOT_TOKEN を bot/.env に設定してください。")
+    try:
+        check_configuration()
+    except (RuntimeError, ValueError) as error:
+        raise SystemExit(str(error)) from None
     lock_path = Path(__file__).with_name("history_bot.lock")
     try:
         instance_lock = acquire_instance_lock(lock_path)

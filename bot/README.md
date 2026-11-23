@@ -47,7 +47,7 @@ This bot is isolated from the existing vocabulary app. It accepts UTF-8 CSV (wit
 
 6. From the repository root, run `.\bot\.venv\Scripts\python.exe bot/history_bot.py`. Attach a CSV to `/import`, then use `/list`, `/check`, `/publish`, or `/delete` with its batch ID. Run only one Bot process against this sheet at a time.
 
-Without `DISCORD_GUILD_ID`, slash-command registration is global and may take time to appear. Configure a guild ID for immediate development-server sync. `/delete` requires `confirm: true` when a batch contains published rows.
+Set `DISCORD_GUILD_ID` and at least one operator in `ADMIN_USER_IDS` before startup. Commands sync to that guild and require both the guild and an allowlisted operator at execution time. Run `python bot/history_bot.py --check-config` to validate the local configuration before a restart. `/delete` requires `confirm: true` when a batch contains published rows.
 
 The Bot writes minimal operation metadata to `bot/history_bot.audit.jsonl` by default (timestamp, Discord user ID, action, batch/problem IDs, success). It never stores CSV cell contents or credentials there. The log prunes entries older than 90 days and is capped at 5 MiB, dropping oldest entries if necessary. A failed write is reported in the command response and process log. `AUDIT_LOG_FILE` can change the path; ensure any custom path is also excluded from Git. Protect the log as operational data; export/archive it securely if longer retention is required.
 
@@ -92,5 +92,7 @@ Run `.\bot\.venv\Scripts\python.exe -m unittest discover -s bot/tests -v` from t
 ## 設定の事前診断
 
 `python bot/history_bot.py --check-config` で、選択環境、管理・公開の接続先の分離、資格情報ファイルの存在、指定時の専用Flow設定を検証できます。標準出力に接続ID・ファイルパス・トークンを出さず、BotやSheetsへ接続しません。サービスアカウントファイル自体の読み取りも行いません。
+
+Webで参照する公開ブックは、一問一答・世界史の流れの管理先に指定できません。管理タブを公開ブックに置いている場合は、既存の教材配信を維持できる形で、管理データを制限付きの別ブックへ分離してからBotの接続先を確認してください。共有設定の確認手順は [セキュリティ監査](../docs/SECURITY_AUDIT.md) にあります。
 
 `GOOGLE_SERVICE_ACCOUNT_FILE` と `HISTORY_ENVIRONMENT_FILE` の相対パスはリポジトリ直下を基準とします。環境JSON内の承認記録はJSONの親ディレクトリを基準とします。移設後に以前の絶対パスが残っていれば、現在の環境のパスへ修正してから再診断してください。Discordのサーバー指定がある場合、管理操作にはそのサーバーと許可ユーザーの一致が必要です。

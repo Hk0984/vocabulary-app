@@ -103,10 +103,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     } catch (error) {
 
-        console.error(
-            "Firebase initialization error:",
-            error
-        );
+        console.error("Firebase initialization error.");
 
         const message =
             document.getElementById("homeMessage");
@@ -505,10 +502,7 @@ async function handleAuth() {
 
     } catch (error) {
 
-        console.error(
-            "Authentication error:",
-            error
-        );
+        console.error("Authentication error.");
 
         showAuthMessage(
             translateAuthError(error),
@@ -649,10 +643,7 @@ async function startAsAnonymous() {
 
     } catch (error) {
 
-        console.error(
-            "Anonymous login error:",
-            error
-        );
+        console.error("Anonymous login error.");
 
         const message =
             document.getElementById(
@@ -692,10 +683,7 @@ async function logout() {
 
     } catch (error) {
 
-        console.error(
-            "Logout error:",
-            error
-        );
+        console.error("Logout error.");
 
         alert(
             "ログアウトに失敗しました。"
@@ -894,10 +882,7 @@ function parseSheetData(values) {
         backIndex === -1
     ) {
 
-        console.error(
-            "表面・裏面の列が見つかりません。",
-            headers
-        );
+        console.error("表面・裏面の列が見つかりません。");
 
         return [];
     }
@@ -2248,10 +2233,7 @@ async function answerQuestion(
     } catch (error) {
 
         if (!isCurrentAccount(account)) return;
-        console.error(
-            "recordAnswer error:",
-            error
-        );
+        console.error("recordAnswer error.");
         setText("studySaveStatus", "履歴を保存できませんでした。今回の成績は画面で確認できます。未保存の回答は自動再送されません。");
     }
 
@@ -3039,10 +3021,7 @@ async function renderProgress(
     } catch (error) {
 
         if (!isCurrentProgressView(view)) return;
-        console.error(
-            "renderProgress error:",
-            error
-        );
+        console.error("renderProgress error.");
 
         alert(
             "学習状況の読み込みに失敗しました。"
@@ -3404,10 +3383,7 @@ async function resetProgress() {
     } catch (error) {
 
         if (!isCurrentAccount(account)) return;
-        console.error(
-            "resetProgress error:",
-            error
-        );
+        console.error("resetProgress error.");
 
         alert(
             "学習状況のリセットに失敗しました。"

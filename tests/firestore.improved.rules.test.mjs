@@ -12,6 +12,7 @@ import {
   inMemoryPersistence,
   linkWithCredential,
   signInAnonymously,
+  signInWithEmailAndPassword,
   signOut
 } from "firebase/auth";
 import {
@@ -20,7 +21,9 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocFromServer,
   getDocs,
+  getDocsFromServer,
   getFirestore,
   setDoc,
   updateDoc
@@ -139,6 +142,11 @@ test("Auth Emulator preserves UID when anonymous account is linked to email/pass
     const originalUid = anonymousCredential.user.uid;
     const email = "anon-link-" + randomUUID() + "@example.test";
     const password = randomBytes(24).toString("base64url") + "Aa1!";
+    const path = "users/" + originalUid + "/progress/auth-link-check";
+    const ownProgress = doc(db, path);
+    await seedDocument(path);
+    await assertFails(getDocFromServer(ownProgress));
+    await assertFails(setDoc(ownProgress, sampleProgress));
 
     const linkedCredential = await linkWithCredential(
       anonymousCredential.user,
@@ -148,18 +156,13 @@ test("Auth Emulator preserves UID when anonymous account is linked to email/pass
     assert.equal(linkedCredential.user.uid, originalUid);
     assert.equal(linkedCredential.user.isAnonymous, false);
 
-    const ownProgress = doc(
-      db,
-      "users",
-      originalUid,
-      "progress",
-      "auth-link-check"
-    );
+    assert.equal((await assertSucceeds(getDocFromServer(ownProgress))).data().id_7.total, 1);
     await assertSucceeds(setDoc(ownProgress, sampleProgress));
-    assert.equal(
-      (await assertSucceeds(getDoc(ownProgress))).exists(),
-      true
-    );
+    await signOut(auth);
+    await assertFails(getDocsFromServer(collection(db, "users/" + originalUid + "/progress")));
+    const signedIn = await signInWithEmailAndPassword(auth, email, password);
+    assert.equal(signedIn.user.uid, originalUid);
+    assert.equal((await assertSucceeds(getDocFromServer(ownProgress))).exists(), true);
     await assertSucceeds(deleteDoc(ownProgress));
   } finally {
     await signOut(auth);

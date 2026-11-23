@@ -97,11 +97,12 @@ async function loadFixture(width, height) {
     await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
     const fixture = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
         .replace(/<link\b[^>]*>/gi, '')
-        .replace('</head>', '<style id="fixtureCss">' + css + '</style></head>')
-        .replace('</body>', '<script>const originalAdd=document.addEventListener.bind(document);document.addEventListener=(name,...args)=>{if(name!=="DOMContentLoaded")originalAdd(name,...args);};' +
-            classificationCode + 'HistoryClassification.setRegions('+JSON.stringify(regionData)+');' + historyCode + appCode + fixtureCode +
+        .replace('</head>', () => '<style id="fixtureCss">' + css + '</style></head>')
+        .replace('</body>', () => '<script>const originalAdd=document.addEventListener.bind(document);document.addEventListener=(name,...args)=>{if(name!=="DOMContentLoaded")originalAdd(name,...args);};' +
+            [classificationCode, 'HistoryClassification.setRegions('+JSON.stringify(regionData)+');', historyCode, appCode, fixtureCode].join('\n') +
             'document.addEventListener=originalAdd;currentUser={uid:"mock",isAnonymous:true};</script></body>');
-    await send('Page.navigate', { url: 'data:text/html;charset=utf-8,' + encodeURIComponent(fixture) });
+    const { frameId } = await send('Page.navigate', { url: 'about:blank' });
+    await send('Page.setDocumentContent', { frameId, html: fixture });
     for (let i = 0; i < 100; i++) {
         if (await evaluate('typeof startHistoryQuiz === "function"')) return;
         await new Promise(resolve => setTimeout(resolve, 20));

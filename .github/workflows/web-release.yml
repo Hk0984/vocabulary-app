@@ -4,7 +4,8 @@
     "workflow_dispatch": {
       "inputs": {
         "deploy": { "description": "Replace the existing production Pages site", "type": "boolean", "default": false },
-        "history_environment": { "description": "History data environment (rebuild requires reviewed public config)", "type": "choice", "options": ["legacy", "rebuild_v1"], "default": "legacy" },
+        "history_environment": { "description": "History data environment (rebuild requires reviewed public config)", "type": "choice", "options": ["rebuild_v1", "legacy"], "default": "rebuild_v1" },
+        "review_run_id": { "description": "Successful review-only run ID for the same main commit and environment", "type": "string", "default": "" },
         "confirmation": { "description": "For deployment only: type REPLACE_PRODUCTION", "type": "string", "default": "" }
       }
     }
@@ -15,15 +16,16 @@
     "build": {
       "if": "github.repository == 'Hk0984/vocabulary-app'",
       "runs-on": "ubuntu-latest",
-      "permissions": { "contents": "read", "pages": "read" },
+      "permissions": { "contents": "read", "pages": "read", "actions": "read" },
       "steps": [
-        { "uses": "actions/checkout@v6", "with": { "persist-credentials": false } },
-        { "uses": "actions/setup-node@v6", "with": { "node-version": "24" } },
+        { "uses": "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803", "with": { "persist-credentials": false } },
+        { "uses": "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38", "with": { "node-version": "24" } },
         { "name": "Verify Pages source before approved deployment", "if": "github.ref == 'refs/heads/main' && inputs.deploy == true && inputs.confirmation == 'REPLACE_PRODUCTION'", "env": { "GITHUB_TOKEN": "${{ github.token }}" }, "run": "node scripts/check-pages-release.mjs" },
         { "name": "Verify packaging and cache behavior", "run": "node --test tests/web-build.test.mjs tests/service-worker.test.mjs" },
         { "name": "Build allowlisted web assets", "env": { "HISTORY_ENVIRONMENT": "${{ inputs.history_environment }}" }, "run": "case \"$HISTORY_ENVIRONMENT\" in rebuild_v1) node scripts/build-web.mjs --history-public-config config/history-public-rebuild.json ;; legacy) node scripts/build-web.mjs ;; *) echo 'Unknown history environment'; exit 1 ;; esac" },
-        { "name": "Upload review artifact (no deployment)", "uses": "actions/upload-artifact@v4", "with": { "name": "web-review-${{ github.run_id }}-${{ github.run_attempt }}", "path": "dist/web", "if-no-files-found": "error", "retention-days": 7 } },
-        { "name": "Prepare approved production artifact", "if": "github.ref == 'refs/heads/main' && inputs.deploy == true && inputs.confirmation == 'REPLACE_PRODUCTION'", "uses": "actions/upload-pages-artifact@v4", "with": { "name": "github-pages-${{ github.run_id }}-${{ github.run_attempt }}", "path": "dist/web" } }
+        { "name": "Upload review artifact (no deployment)", "uses": "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", "with": { "name": "web-review-${{ github.run_id }}-${{ github.run_attempt }}", "path": "dist/web", "if-no-files-found": "error", "retention-days": 7 } },
+        {"name": "Verify same-commit review artifact", "if": "github.ref == 'refs/heads/main' && inputs.deploy == true && inputs.confirmation == 'REPLACE_PRODUCTION'", "env": {"GH_TOKEN": "${{ github.token }}", "REVIEW_RUN_ID": "${{ inputs.review_run_id }}"}, "run": "set -euo pipefail\nattempt=\"$(node scripts/check-pages-review.mjs)\"\nreview_dir=\"$(mktemp -d)\"\ntrap 'rm -rf -- \"$review_dir\"' EXIT\nif ! gh run download \"$REVIEW_RUN_ID\" --repo \"$GITHUB_REPOSITORY\" --name \"web-review-$REVIEW_RUN_ID-$attempt\" --dir \"$review_dir\" >/dev/null 2>&1; then\n    echo 'Review artifact is unavailable. Run a fresh review-only build.'\n    exit 1\nfi\nif ! diff -qr -- \"$review_dir\" dist/web >/dev/null 2>&1; then\n    echo 'Review artifact differs from this build. Check the commit and history environment.'\n    exit 1\nfi\necho 'Review and deployment assets are identical.'\n"},
+        { "name": "Prepare approved production artifact", "if": "github.ref == 'refs/heads/main' && inputs.deploy == true && inputs.confirmation == 'REPLACE_PRODUCTION'", "uses": "actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b", "with": { "name": "github-pages-${{ github.run_id }}-${{ github.run_attempt }}", "path": "dist/web" } }
       ]
     },
     "deploy": {
@@ -32,7 +34,7 @@
       "runs-on": "ubuntu-latest",
       "permissions": { "pages": "write", "id-token": "write" },
       "environment": { "name": "github-pages", "url": "${{ steps.deployment.outputs.page_url }}" },
-      "steps": [{ "name": "Replace production Pages (explicit approval required)", "id": "deployment", "uses": "actions/deploy-pages@v4", "with": { "artifact_name": "github-pages-${{ github.run_id }}-${{ github.run_attempt }}" } }]
+      "steps": [{ "name": "Replace production Pages (explicit approval required)", "id": "deployment", "uses": "actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e", "with": { "artifact_name": "github-pages-${{ github.run_id }}-${{ github.run_attempt }}" } }]
     }
   }
 }

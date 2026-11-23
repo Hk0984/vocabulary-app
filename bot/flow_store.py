@@ -10,6 +10,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 from flow_schema import ADMIN_HEADERS, PUBLIC_HEADERS, GENERATED_SOURCE, FlowError, public_rows, temporal_issues, validate_rows
+from history_environment import active_profile, reject_public_management_book
 from instance_lock import acquire_instance_lock, release_instance_lock
 
 
@@ -25,12 +26,15 @@ def configuration():
     if values[1] != 'history_flow_admin' or values[3] != 'history_flow_public' or values[0] == values[2]:
         raise FlowError('flow設定: 管理・公開には別のスプレッドシートと専用タブ名が必要です')
     legacy = {os.environ.get(k, '').strip() for k in ['GOOGLE_SHEETS_SPREADSHEET_ID', 'PUBLIC_QUESTIONS_SPREADSHEET_ID']}
-    from history_environment import active_profile
     profile = active_profile()
     if profile:
         legacy.update([profile['management_spreadsheet_id'], profile['public_spreadsheet_id']])
     if set([values[0], values[2]]) & legacy:
         raise FlowError('flow設定: 既存一問一答のシートIDは流用できません')
+    try:
+        reject_public_management_book(values[0])
+    except RuntimeError as error:
+        raise FlowError(str(error)) from None
     return {'admin_id':values[0], 'admin_title':values[1], 'public_id':values[2], 'public_title':values[3]}
 
 

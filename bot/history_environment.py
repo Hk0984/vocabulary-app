@@ -9,6 +9,35 @@ from history_data import question_digest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+@lru_cache(maxsize=1)
+def public_web_book_ids():
+    sources = {
+        'script.js': r'(?m)^const SHEET_ID\s*=\s*',
+        'history-config.js': r'(?m)^\s*spreadsheetId:\s*',
+        'history-flow-config.js': r'(?m)^\s*spreadsheetId:\s*',
+    }
+    try:
+        ids = set()
+        for filename, prefix in sources.items():
+            source = (REPO_ROOT / filename).read_text(encoding='utf-8-sig')
+            matches = re.findall(prefix + r"['\"]([A-Za-z0-9_-]+)['\"]", source)
+            if len(matches) != 1:
+                raise ValueError()
+            ids.add(matches[0])
+        config = json.loads((REPO_ROOT / 'config/history-public-rebuild.json').read_text(encoding='utf-8-sig'))
+        if not re.fullmatch(r'[A-Za-z0-9_-]+', config['spreadsheetId']):
+            raise ValueError()
+        ids.add(config['spreadsheetId'])
+        return frozenset(ids)
+    except (OSError, ValueError, TypeError, KeyError):
+        raise RuntimeError('Webの公開ブック設定を確認できないため、BotのSheets接続を停止しました。') from None
+
+
+def reject_public_management_book(spreadsheet_id):
+    if spreadsheet_id.strip() in public_web_book_ids():
+        raise RuntimeError('Webの公開ブックをBotの管理先に指定できません。非公開の管理ブックを設定してください。')
+
+
 def repository_path(value):
     path = Path(value)
     if os.name != 'nt' and PureWindowsPath(value).drive:
