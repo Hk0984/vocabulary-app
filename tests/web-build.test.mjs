@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { buildWeb, WEB_FILES } from '../scripts/build-web.mjs';
 import { checkPagesSource } from '../scripts/check-pages-release.mjs';
+import { reviewedAttempt, requireReviewOnly } from '../scripts/check-pages-review.mjs';
 import { buildIphonePreview } from '../scripts/build-iphone-preview.mjs';
 import { loadHistoryQuizCsv } from '../scripts/history-quiz-details.mjs';
 
@@ -185,10 +186,48 @@ test('manual workflow cannot deploy a feature branch or deploy without explicit 
         assert.equal(step.with.path,'dist/web');
     }
     assert.equal(workflow.jobs.deploy.environment.name,'github-pages');
-    assert.deepEqual(workflow.jobs.build.permissions,{contents:'read',pages:'read'});
+    assert.deepEqual(workflow.jobs.build.permissions,{contents:'read',pages:'read',actions:'read'});
+    assert.deepEqual(workflow.jobs.deploy.permissions,{pages:'write','id-token':'write'});
     const gate=workflow.jobs.build.steps.find(step=>step.run==='node scripts/check-pages-release.mjs');
+    const reviewGate=workflow.jobs.build.steps.find(step=>step.name==='Verify same-commit review artifact');
     assert.ok(gate);
-    assert.ok(workflow.jobs.build.steps.indexOf(gate)<workflow.jobs.build.steps.findIndex(step=>step.uses==='actions/upload-pages-artifact@v4'));
+    const publishIndex=workflow.jobs.build.steps.findIndex(step=>step.uses?.startsWith('actions/upload-pages-artifact@'));
+    assert.ok(workflow.jobs.build.steps.indexOf(gate)<publishIndex);
+    assert.ok(reviewGate && workflow.jobs.build.steps.indexOf(reviewGate)<publishIndex);
+    assert.match(reviewGate.run,/diff -qr -- "\$review_dir" dist\/web/);
+});
+
+test('automatic verification workflows cannot deploy and Actions use commit pins', async () => {
+    const load = name => readFile(new URL('../.github/workflows/' + name, import.meta.url),'utf8').then(JSON.parse);
+    const [ci, manual] = await Promise.all([load('history-explanations-20261122.yml'), load('web-release.yml')]);
+    assert.deepEqual(Object.keys(ci.on).sort(), ['pull_request','push']);
+    for (const job of Object.values(ci.jobs)) {
+        assert.equal(job.environment,undefined);
+        assert.deepEqual(job.permissions,{contents:'read'});
+        assert.ok(job.steps.every(step=>!step.uses?.includes('pages')));
+    }
+    for (const job of [...Object.values(ci.jobs), ...Object.values(manual.jobs)]) {
+        for (const step of job.steps.filter(step=>step.uses)) assert.match(step.uses,/@[a-f0-9]{40}$/);
+    }
+});
+
+test('review gate requires a distinct successful review-only run at the exact main commit', () => {
+    const config = {repository:'Hk0984/vocabulary-app',runId:'42',currentRunId:'43',commit:'a'.repeat(40)};
+    const run = {
+        id:42, path:'.github/workflows/web-release.yml', event:'workflow_dispatch',
+        head_repository:{full_name:config.repository}, head_branch:'main', head_sha:config.commit,
+        status:'completed', conclusion:'success', run_attempt:2
+    };
+    assert.equal(reviewedAttempt(run,config),2);
+    for (const change of [{head_sha:'b'.repeat(40)},{head_branch:'feature'},{path:'other.yml'},
+        {event:'push'},{status:'in_progress'},{conclusion:'failure'},{head_repository:{full_name:'fork/repo'}}]) {
+        assert.throws(()=>reviewedAttempt({...run,...change},config),/successful manual review/i);
+    }
+    assert.throws(()=>reviewedAttempt(run,{...config,currentRunId:config.runId}));
+    const build={name:'build',conclusion:'success'};
+    requireReviewOnly([build,{name:'deploy',conclusion:'skipped'}]);
+    assert.throws(()=>requireReviewOnly([build,{name:'deploy',conclusion:'success'}]),/deployment skipped/);
+    assert.throws(()=>requireReviewOnly([build]),/deployment skipped/);
 });
 
 test('release gate stops legacy Pages publishing and unreadable settings without exposing authentication', async () => {
@@ -202,8 +241,8 @@ test('release gate stops legacy Pages publishing and unreadable settings without
 
 test('rollback reruns create a fresh artifact and deploy the matching run attempt', async () => {
     const workflow=JSON.parse(await readFile(new URL('../.github/workflows/web-release.yml',import.meta.url),'utf8'));
-    const review=workflow.jobs.build.steps.find(step=>step.uses==='actions/upload-artifact@v4').with.name;
-    const pages=workflow.jobs.build.steps.find(step=>step.uses==='actions/upload-pages-artifact@v4').with.name;
+    const review=workflow.jobs.build.steps.find(step=>step.uses?.startsWith('actions/upload-artifact@')).with.name;
+    const pages=workflow.jobs.build.steps.find(step=>step.uses?.startsWith('actions/upload-pages-artifact@')).with.name;
     const deployed=workflow.jobs.deploy.steps[0].with.artifact_name;
     const render=(template,attempt)=>template.replace(/\$\{\{\s*github\.(run_id|run_attempt)\s*\}\}/g,(_,key)=>String({run_id:123,run_attempt:attempt}[key]));
     assert.notEqual(render(review,1),render(review,2));
@@ -235,11 +274,11 @@ test('invalid or private new-environment overrides fail before creating an artif
     await assert.rejects(readdir(options.outputDir),{code:'ENOENT'});
 });
 
-test('environment choice remains manual, legacy by default, with a fixed public-only config path',async()=>{
+test('environment choice defaults to the current release and keeps legacy explicit',async()=>{
     const workflow=JSON.parse(await readFile(new URL('../.github/workflows/web-release.yml',import.meta.url),'utf8'));
     assert.deepEqual(Object.keys(workflow.on),['workflow_dispatch']);
-    assert.equal(workflow.on.workflow_dispatch.inputs.history_environment.default,'legacy');
-    assert.deepEqual(workflow.on.workflow_dispatch.inputs.history_environment.options,['legacy','rebuild_v1']);
+    assert.equal(workflow.on.workflow_dispatch.inputs.history_environment.default,'rebuild_v1');
+    assert.deepEqual(workflow.on.workflow_dispatch.inputs.history_environment.options,['rebuild_v1','legacy']);
     const build=workflow.jobs.build.steps.find(s=>s.name==='Build allowlisted web assets');
     assert.match(build.run,/--history-public-config config\/history-public-rebuild.json/);
     assert.equal(build.env.HISTORY_ENVIRONMENT,'${{ inputs.history_environment }}');

@@ -1,6 +1,6 @@
 # 既存URLでの検証公開準備
 
-新規世界史環境の切替は [HISTORY_REBUILD.md](HISTORY_REBUILD.md) を参照。手動ワークフローの `history_environment` は既定legacyで、rebuild_v1は公開専用設定が入力・レビューされるまでビルドを停止する。Bot用接続や承認記録は成果物へ含めない。
+セキュリティ監査PRの公開手順、GitHub側の保護設定および確認結果は [セキュリティ監査](SECURITY_AUDIT.md) を参照してください。下記はPages移行時の記録です。世界史環境の切替については [HISTORY_REBUILD.md](HISTORY_REBUILD.md) に記載しています。
 
 世界史分類v1のローカル版では、公開成果物は従来11件に `history-classification.js` と `history-regions.json` を加えた **13ファイル**です。シート移行は [HISTORY_V1_MIGRATION.md](HISTORY_V1_MIGRATION.md) の順序に従います。以下の過去のビルドID・復旧候補11件は当時の記録であり、今回の公開実行を許可するものではありません。
 

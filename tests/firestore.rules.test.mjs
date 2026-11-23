@@ -25,6 +25,7 @@ if (!projectId.startsWith("demo-")) {
 }
 
 const rules = readFileSync(new URL("../firestore.rules", import.meta.url), "utf8");
+assert.equal(rules.trim(), readFileSync(new URL("../firestore.improved.rules", import.meta.url), "utf8").trim());
 let testEnv;
 
 const sampleProgress = {
@@ -109,7 +110,7 @@ test("an unauthenticated user cannot read or write progress", async () => {
   await assertFails(setDoc(ref, sampleProgress));
 });
 
-test("an anonymous authenticated user is allowed on own data by current Rules", async () => {
+test("an anonymous user cannot access cloud progress, including their own", async () => {
   await seedProgress("users/anonymous-user/progress/sheet-1");
 
   const anonymous = testEnv.authenticatedContext("anonymous-user", {
@@ -120,8 +121,10 @@ test("an anonymous authenticated user is allowed on own data by current Rules", 
     "users/anonymous-user/progress/sheet-1"
   );
 
-  assert.equal((await assertSucceeds(getDoc(ownRef))).exists(), true);
-  await assertSucceeds(setDoc(ownRef, sampleProgress, { merge: true }));
+  await assertFails(getDoc(ownRef));
+  await assertFails(getDocs(collection(anonymous.firestore(), "users/anonymous-user/progress")));
+  await assertFails(setDoc(ownRef, sampleProgress, { merge: true }));
+  await assertFails(deleteDoc(ownRef));
 
   const otherRef = doc(
     anonymous.firestore(),
@@ -130,17 +133,17 @@ test("an anonymous authenticated user is allowed on own data by current Rules", 
   await assertFails(getDoc(otherRef));
 });
 
-test("current Rules allow arbitrary operations and paths under the owner's subtree", async () => {
+test("owners can delete progress and cannot use arbitrary paths in their subtree", async () => {
   const owner = testEnv.authenticatedContext("alice");
   const unexpectedRef = doc(
     owner.firestore(),
     "users/alice/profile/preferences"
   );
 
-  await assertSucceeds(setDoc(unexpectedRef, {
+  await assertFails(setDoc(unexpectedRef, {
     arbitraryField: { role: "owner", flags: ["unvalidated"] }
   }));
-  assert.equal((await assertSucceeds(getDoc(unexpectedRef))).exists(), true);
+  await assertFails(getDoc(unexpectedRef));
 
   const ownProgressRef = doc(
     owner.firestore(),
