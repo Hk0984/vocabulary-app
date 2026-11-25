@@ -122,6 +122,47 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 
+// The same buttons handle pointer and keyboard answers.
+const quizKeyboardScreens = [
+    { id: "studyPage", choices: "#choices > button.choice", next: "nextButton" },
+    { id: "historyQuiz", choices: "#historyChoices > button.choice", next: "historyNext" },
+    { id: "flowQuiz", choices: "#flowChoices > button.flow-choice", next: "flowNext" }
+];
+
+document.addEventListener("keydown", event => {
+    const { key, target } = event;
+    const enter = key === "Enter";
+    if ((!enter && !/^[1-4]$/.test(key)) || event.defaultPrevented || event.isComposing ||
+        event.keyCode === 229 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+
+    if (navigator.userAgentData?.mobile || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) return;
+    if (target?.isContentEditable || target?.closest?.("input, select, textarea, [role='textbox']")) return;
+
+    const screen = quizKeyboardScreens.find(({ id }) => document.getElementById(id)?.getClientRects().length);
+    if (!screen) return;
+
+    const choices = [...document.querySelectorAll(screen.choices)];
+    if (screen.id === "flowQuiz" && !choices.length) return;
+    const next = document.getElementById(screen.next);
+    const canAdvance = next && !next.disabled && next.getClientRects().length;
+    const choice = choices[Number(key) - 1];
+
+    if (enter) {
+        const focusedControl = target?.closest?.("button, a[href], summary, [role='button']");
+        if (focusedControl && focusedControl !== next && !choices.includes(focusedControl)) return;
+    }
+
+    const button = canAdvance
+        ? (enter || choice?.classList.contains("quiz-selected") ? next : null)
+        : (choice && !choice.disabled ? choice : null);
+    if (!button) return;
+
+    event.preventDefault();
+    if (!event.repeat) button.click();
+});
+
+
 // ============================================================
 // ページ切り替え
 // ============================================================
@@ -2156,6 +2197,7 @@ async function answerQuestion(
     // --------------------------------------------------------
 
     if (clickedButton) {
+        clickedButton.classList.add("quiz-selected");
 
         clickedButton.classList.add(
             isCorrect

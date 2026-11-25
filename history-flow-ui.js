@@ -59,10 +59,11 @@
             ? q.question.replace(/\{[^{}]+\}/g, token => '（' + (q.blanks.findIndex(blank => token === '{'+blank.id+'}') + 1) + '）')
             : q.question;
         const options=session.options(), selected=[];
-        const result=answer=>{
+        const result=(answer, selectedButton)=>{
             if(!live())return;
             const correct=session.submit(answer);if(correct===null)return;
             container.querySelectorAll('button').forEach(b=>{b.disabled=true;});
+            selectedButton?.classList.add('quiz-selected');
             if (q.type === 'cloze') {
                 const answers = q.blanks.map(blank => blank.mode === 'choice'
                     ? blank.choices.find(entry => entry.correct).text : blank.accepted[0]);
@@ -77,7 +78,10 @@
             el('flowExplanation').textContent=(correct?'正解です。':'不正解です。')+' 正解：'+answerIds.map(id=>items.find(v=>v.id===id).text).join(' → ')+'\n'+q.explanation;
             el('flowNext').hidden=false;
         };
-        if(q.type==='contemporary')for(const item of options)button(item.text,()=>result(item.id));
+        if(q.type==='contemporary')for(const item of options) {
+            const choice=button(item.text,()=>result(item.id,choice));
+            choice.className='flow-choice';
+        }
         else if (q.type === 'cloze') {
             const controls = q.blanks.map((blank,i) => {
                 const label = document.createElement('label');

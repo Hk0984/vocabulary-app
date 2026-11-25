@@ -6,7 +6,7 @@ const read=path=>readFile(new URL(path,import.meta.url),'utf8');
 const sample=JSON.parse(await read('../templates/history-flow.sample.json'));
 const regions=JSON.parse(await read('../history-regions.json'));
 class Node {
-    constructor(){this.children=[];this.listeners={};this.textContent='';this.hidden=false;this.disabled=false;this.value='';this.selectedOptions=[];}
+    constructor(){this.children=[];this.listeners={};this.textContent='';this.hidden=false;this.disabled=false;this.value='';this.selectedOptions=[];this.classList=new Set();}
     appendChild(n){this.children.push(n);}
     replaceChildren(){this.children=[];}
     setAttribute(){}

@@ -80,7 +80,7 @@ after(async () => {
 
 const html=await readFile(path.join(root,'index.html'),'utf8');
 const css=await readFile(path.join(root,'style.css'),'utf8');
-const code=await Promise.all(['history-classification.js','attribute-tags.js','history-flow.js','history-flow-config.js','history-flow-source.js','script.js','history-flow-ui.js'].map(f=>readFile(path.join(root,f),'utf8')));
+const code=await Promise.all(['history-classification.js','history_questions.js','attribute-tags.js','history-flow.js','history-flow-config.js','history-flow-source.js','script.js','history-flow-ui.js'].map(f=>readFile(path.join(root,f),'utf8')));
 const regions=JSON.parse(await readFile(path.join(root,'history-regions.json'),'utf8'));
 const sample=JSON.parse(await readFile(path.join(root,'templates/history-flow.sample.json'),'utf8'));
 async function fixture(width,data) {
@@ -92,6 +92,77 @@ async function fixture(width,data) {
     await send('Page.setDocumentContent',{frameId,html:page});
     await evaluate('openHistoryFlow()');
 }
+
+async function quizKey(key, { code = key === 'Enter' ? 'Enter' : 'Digit' + key, autoRepeat = false } = {}) {
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, autoRepeat });
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code });
+}
+
+test('desktop vocabulary uses the selected number or Enter once per question', async () => {
+    await fixture(1280, { schema_version: '1.0', questions: [] });
+    await evaluate(`currentUser = {uid:'fixture',isAnonymous:true}; selectedSheet = 'fixture';
+        studyWords = [['apple','りんご'],['train','列車'],['sky','空'],['book','本']]
+            .map(([front,back],id)=>({id,front,back}));
+        showPage('studyPage'); showQuestion();`);
+    await quizKey('Enter');
+    assert.equal(await evaluate('sessionAnswered'), 0);
+    await evaluate(`const testInput = document.createElement('input');
+        document.getElementById('studyPage').appendChild(testInput);testInput.focus();`);
+    await quizKey('1');
+    assert.equal(await evaluate('sessionAnswered'), 0);
+    await evaluate('testInput.remove()');
+    await quizKey('4', { code: 'Numpad4' });
+    assert.equal(await evaluate('document.querySelectorAll("#choices button")[3].classList.contains("quiz-selected")'), true);
+    await quizKey('1');
+    await quizKey('4', { autoRepeat: true });
+    assert.equal(await evaluate('currentIndex'), 0);
+    await quizKey('4');
+    assert.equal(await evaluate('currentIndex'), 1);
+    await quizKey('4', { autoRepeat: true });
+    assert.equal(await evaluate('sessionAnswered'), 1);
+    await quizKey('2');
+    await quizKey('Enter');
+    assert.equal(await evaluate('currentIndex'), 2);
+    await evaluate('document.querySelector("#choices button").click()');
+    await quizKey('1');
+    assert.equal(await evaluate('currentIndex'), 3);
+});
+
+test('desktop history retains feedback until advancing with the selected key or Enter', async () => {
+    await fixture(1280, { schema_version: '1.0', questions: [] });
+    const headers = ['id','source_id','question','choice1','choice2','choice3','choice4','answer','explanation'];
+    const rows = ['最初の問題','次の問題'].map((question,index) => [String(index), 'sample', question, '甲', '乙', '丙', '丁', '1', '問題の解説']);
+    await evaluate(`window.HISTORY_QUESTIONS_CONFIG={spreadsheetId:'fixture',sheetName:'fixture',apiKey:'fixture'};
+        startHistoryQuiz({order:'registered',questions:HistoryQuestionCore.parseHistoryQuestionValues(${JSON.stringify([headers,...rows])})})`);
+    await quizKey('3');
+    assert.equal(await evaluate('document.querySelectorAll("#historyChoices button")[2].classList.contains("quiz-selected")'), true);
+    assert.equal(await evaluate('document.getElementById("historyExplanationText").textContent'), '問題の解説');
+    await quizKey('3');
+    assert.equal(await evaluate('document.getElementById("historyQuestion").textContent'), '次の問題');
+    await quizKey('2');
+    await quizKey('Enter');
+    assert.match(await evaluate('document.getElementById("historySummary").textContent'), /学習終了：出題 2問/);
+});
+
+test('keyboard supports contemporary questions and leaves mobile and ordering controls alone', async () => {
+    const data = { schema_version: '1.0', questions: sample.questions };
+    await fixture(1280, data);
+    await evaluate('document.getElementById("flow_order").value="registered";document.getElementById("flowStart").click()');
+    const desktopAgent = await evaluate('navigator.userAgent');
+    await send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)' });
+    try {
+        await quizKey('1');
+        assert.equal(await evaluate('document.getElementById("flowNext").hidden'), true);
+    } finally {
+        await send('Emulation.setUserAgentOverride', { userAgent: desktopAgent });
+    }
+    await quizKey('1');
+    assert.equal(await evaluate('document.querySelector("#flowChoices button").classList.contains("quiz-selected")'), true);
+    await quizKey('Enter');
+    await quizKey('1');
+    assert.equal(await evaluate('document.querySelector("#flowChoices button").disabled'), false);
+});
+
 for(const width of [375,1280])test(`flow settings and ordering at ${width}px`,async()=>{
     await fixture(width,{schema_version:'1.0',questions:[sample.questions[1]]});
     assert.equal(await evaluate('document.documentElement.scrollWidth > innerWidth'),false);
