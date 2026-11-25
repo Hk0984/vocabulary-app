@@ -461,6 +461,7 @@
         const choiceButtons = element("historyChoices").querySelectorAll("button");
         choiceButtons.forEach((button, index) => {
             button.disabled = true;
+            if (index === selectedIndex) button.classList.add("quiz-selected");
             if (question.choices[index].correct) button.classList.add("correct");
             else if (index === selectedIndex) button.classList.add("incorrect");
         });

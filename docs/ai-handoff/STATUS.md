@@ -1,5 +1,10 @@
 # 現在の状態
 
+## PCの解答ショートカット（2026-11-26 JST）
+
+- `main` の `249d121` を起点に、通常学習・世界史一問一答・世界史の流れの同時代判定の回答と次問を、既存のボタンからキーボードでも操作できるようにした。
+- Web回帰156件、ネットワーク遮断のChromium 9件、世界史教材照合、公開候補21ファイルのビルドに成功。Chromiumではテンキー、長押し、入力欄、モバイル判定も確認した。 [Pagesの手動公開記録](https://github.com/Hk0984/vocabulary-app/actions/workflows/web-release.yml)
+
 ## H-3 PR #5の再確認（2026-11-20 JST）
 
 - マージ済みのPR #5を起点に、追加CSVの3問だけを修正。長安の前漢・唐の位置は [UNESCO登録座標](https://whc.unesco.org/en/list/1442/maps/) で照合。ゲルマン人政権の設問は、誤答の東西教会分裂・十字軍を設問の時期と区別する説明に変えた。 [1054年の共同宣言](https://www.vatican.va/content/paul-vi/en/speeches/1965/documents/hf_p-vi_spe_19651207_common-declaration.html)・[メトロポリタン美術館の十字軍資料](https://www.metmuseum.org/essays/the-crusades-1095-1291)
